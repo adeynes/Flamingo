@@ -1,0 +1,8 @@
+branches:
+  - master
+
+projects:
+  Flamingo:
+    libs:
+      - src: poggit/libasynql/libasynql
+        version: ^3.1.1

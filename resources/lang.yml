@@ -1,0 +1,6 @@
+# DO NOT EDIT THE FOLLOWING LINE
+version: '0.1'
+
+error:
+  incompatible-config-version: Incompatible config.yml version! Try deleting Flamingo/resources/config.yml and reboot the server.
+  incompatible-lang-version: Incompatible lang.yml version! Try deleting Flamingo/resources/lang.yml and reboot the server.
