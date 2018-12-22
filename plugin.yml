@@ -3,5 +3,5 @@ main: adeynes\Flamingo\Flamingo
 version: 0.0.1
 api: 3.2.0
 author: adeynes
-description: 5 teams. One flamingo is chosen after 40 minutes. Who will be the traitors?
+description: Many teams. Few become flamingo is chosen after 40 minutes. Who will be the traitors?
 website: https://github.com/adeynes/Flamingo
