@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace adeynes\Flamingo;
 
 use adeynes\Flamingo\struct\TeamOrganization;
+use adeynes\Flamingo\utils\Utils;
+use pocketmine\scheduler\ClosureTask;
 
 final class Game
 {
@@ -13,6 +15,12 @@ final class Game
 
     /** @var int[] */
     private const TEAM_SIZE_OPTIMALITY = [2 => 0.85, 3 => 0.98, 4 => 0.8, 5 => 0.45, 6 => 0.2];
+
+    /**
+     * The number of flamingo teams will be 1 + floor(FLAMINGO_RATIO * numRegularTeams)
+     * @var float
+     */
+    private const FLAMINGO_RATIO = 1/6;
 
     /** @var Flamingo */
     private $plugin;
@@ -71,7 +79,15 @@ final class Game
         if ($this->isStarted()) {
             throw new \InvalidStateException(self::ATTEMPTED_TO_START_ALREADY_STARTED_GAME);
         }
+
         $this->generateRegularTeams();
+        $this->plugin->getScheduler()->scheduleDelayedTask(
+            new ClosureTask(function (int $currentTick): void {
+                $this->generateFlamingoTeams();
+            }),
+            $this->plugin->getConfig()->get('flamingo-delay') * 60 * 20
+        );
+
         $this->isStarted = true;
     }
 
@@ -84,40 +100,49 @@ final class Game
     {
         $this->teamOrganization = $org = $this->teamSize === null ? $this->findTeamSize() :
                                   TeamOrganization::calculate($this->teamSize, count($this->players));
-        $players = $this->players;
-        for ($i = 0; $i < $org->getNumTeams(); ++$i) {
-            // Get the required amount of players randomly
-            $rand_players = array_rand($this->players, $org->getTeamSize());
-            // Remove those players from the pool so they don't get picked in another team
-            $players = array_diff_key($players, array_flip($rand_players));
+        $playersNotDistributed = $this->players;
 
-            $team = new Team(Team::TEAM_TYPE_REGULAR, array_intersect_key($this->players, array_flip($rand_players)));
-            $this->regularTeams[] = $team;
-        }
+        $this->regularTeams = Utils::initArrayWithClosure(
+            function (int $i) use ($org, &$playersNotDistributed) {
+                $randPlayers = Utils::getRandomElems($this->players, $org->getTeamSize(), $playersNotDistributed);
+                return new Team(Team::TEAM_TYPE_REGULAR, $randPlayers);
+            },
+            $org->getNumTeams()
+        );
 
         $numExtraPlayers = $org->getNumTeamsWithNumericalSup();
         // The actual remaining players need to === the theoretical remaining players
-        if (count($players) !== $numExtraPlayers) {
+        if (count($playersNotDistributed) !== $numExtraPlayers) {
             throw new \InvalidStateException(
                 'Actual remaining players !== theoretical remainder in Game::generateRegularTeams' . PHP_EOL .
                 'theo. remainder: ' . $numExtraPlayers . PHP_EOL .
                 'original players: ' . var_export($this->players) . PHP_EOL .
-                'players after dist.: ' . var_export($players) . PHP_EOL .
+                'players not dist.: ' . var_export($playersNotDistributed) . PHP_EOL .
                 'reg. teams: ' . var_export($this->getRegularTeams())
             );
         };
 
-        $remainingPlayers = array_values($players);
-        // Distribute extra players
-        for ($i = 0; $i < $numExtraPlayers; ++$i) {
-            // Pick teams to receive the extra players
-            $receivingTeamKeys = array_rand($this->getRegularTeams(), $numExtraPlayers);
-            /** @var Team[] $receivingTeams */
-            $receivingTeams = array_intersect_key($this->getRegularTeams(), array_flip($receivingTeamKeys));
-            foreach ($receivingTeams as $team) {
-                $team->addPlayers($remainingPlayers[$i]);
-            }
-        }
+        $remainingPlayers = array_values($playersNotDistributed);
+        /** @var Team[] $receivingTeams */
+        $receivingTeams = Utils::getRandomElems($this->getRegularTeams(), $numExtraPlayers);
+        array_walk($receivingTeams, function ($team, $i) use ($remainingPlayers) {
+            /** @var Team $team */
+            $team->addPlayers($remainingPlayers[$i]);
+        });
+    }
+
+    private function generateFlamingoTeams(): void
+    {
+        $teamSize = $this->getTeamOrganization()->getTeamSize();
+        $numFlamingoTeams = 1 + floor(1/6 * $this->getTeamOrganization()->getNumTeams());
+        $flamingoPlayers = Utils::getRandomElems($this->players, $numFlamingoTeams * $teamSize);
+        $chunks = array_chunk($flamingoPlayers, $teamSize);
+        $this->flamingoTeams = Utils::initArrayWithClosure(
+            function (int $i) use ($chunks) {
+                return new Team(Team::TEAM_TYPE_FLAMINGO, $chunks[$i]);
+            },
+            $numFlamingoTeams
+        );
     }
 
     /**
