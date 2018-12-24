@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo;
 
+use adeynes\Flamingo\event\FlamingoTeamsGenerationEvent;
+use adeynes\Flamingo\event\GameStartEvent;
 use adeynes\Flamingo\struct\TeamOrganization;
 use adeynes\Flamingo\utils\Utils;
 use pocketmine\scheduler\ClosureTask;
@@ -28,6 +30,9 @@ final class Game
     /** @var bool */
     private $isStarted = false;
 
+    /** @var Player[] */
+    private $players = [];
+
     /** @var ?int */
     private $teamSize;
 
@@ -40,9 +45,6 @@ final class Game
     /** @var Team[] */
     private $flamingoTeams = [];
 
-    /** @var Player[] */
-    private $players;
-
     public function __construct(Flamingo $plugin, int $teamSize = null)
     {
         $this->plugin = $plugin;
@@ -52,6 +54,14 @@ final class Game
     public function isStarted(): bool
     {
         return $this->isStarted;
+    }
+
+    /**
+     * @return Player[]
+     */
+    public function getPlayers(): array
+    {
+        return $this->players;
     }
 
     public function getTeamOrganization(): TeamOrganization
@@ -65,6 +75,14 @@ final class Game
     public function getRegularTeams(): array
     {
         return $this->regularTeams;
+    }
+
+    /**
+     * @return Team[]
+     */
+    public function getFlamingoTeams(): array
+    {
+        return $this->flamingoTeams;
     }
 
     public function addPlayers(Player ...$players): void
@@ -84,9 +102,12 @@ final class Game
         $this->plugin->getScheduler()->scheduleDelayedTask(
             new ClosureTask(function (int $currentTick): void {
                 $this->generateFlamingoTeams();
+                (new FlamingoTeamsGenerationEvent($this))->call();
             }),
             $this->plugin->getConfig()->get('flamingo-delay') * 60 * 20
         );
+
+        (new GameStartEvent($this))->call();
 
         $this->isStarted = true;
     }
