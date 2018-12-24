@@ -123,9 +123,8 @@ final class Game
         };
 
         $remainingPlayers = array_values($playersNotDistributed);
-        /** @var Team[] $receivingTeams */
         $receivingTeams = Utils::getRandomElems($this->getRegularTeams(), $numExtraPlayers);
-        array_walk($receivingTeams, function ($team, $i) use ($remainingPlayers) {
+        array_walk($receivingTeams, function (Team $team, int $i) use ($remainingPlayers) {
             /** @var Team $team */
             $team->addPlayers($remainingPlayers[$i]);
         });
@@ -134,7 +133,7 @@ final class Game
     private function generateFlamingoTeams(): void
     {
         $teamSize = $this->getTeamOrganization()->getTeamSize();
-        $numFlamingoTeams = 1 + floor(1/6 * $this->getTeamOrganization()->getNumTeams());
+        $numFlamingoTeams = 1 + floor(self::FLAMINGO_RATIO * $this->getTeamOrganization()->getNumTeams());
         $flamingoPlayers = Utils::getRandomElems($this->players, $numFlamingoTeams * $teamSize);
         $chunks = array_chunk($flamingoPlayers, $teamSize);
         $this->flamingoTeams = Utils::initArrayWithClosure(
@@ -166,7 +165,7 @@ final class Game
 
         $total = array_sum($scores);
         $probabilities = array_map(
-            function ($score) use ($total) { return $score / $total; },
+            function (float $score) use ($total) { return $score / $total; },
             $scores
         );
 
