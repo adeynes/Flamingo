@@ -308,12 +308,7 @@ final class Game implements Listener
         if ($dead->getTeam()->isEliminated()) {
             $this->plugin->getServer()->broadcastMessage(
                 "Team {$dead->getTeam()->getName()} has been eliminated!",
-                array_map(
-                    function (Player $player): PMPlayer {
-                        return $player->getPmPlayer();
-                    },
-                    $this->getPlayers()
-                )
+                $this->getLevel()->getPlayers()
             );
         }
 
