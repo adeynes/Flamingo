@@ -18,16 +18,10 @@ final class Game implements Listener
 {
 
     /** @var string */
-    public const ATTEMPTED_TO_START_ALREADY_STARTED_GAME = 'Attempted to start a game that was already started';
+    public const ERROR_GAME_IS_ALREADY_STARTED = 'Attempted to start a game that was already started';
 
-    /** @var int[] */
-    private const TEAM_SIZE_OPTIMALITY = [2 => 0.85, 3 => 0.98, 4 => 0.8, 5 => 0.45, 6 => 0.2];
-
-    /**
-     * The number of flamingos to normal players
-     * @var float
-     */
-    private const FLAMINGO_PROPORTION = 1/3.5;
+    /** @var string */
+    public const ERROR_PLAYING_IS_NOT_PLAYING = 'Attempted to eliminate a dead or non-existing player %player%';
 
     /** @var bool */
     private $isStarted = false;
@@ -132,7 +126,7 @@ final class Game implements Listener
     public function start(): void
     {
         if ($this->isStarted()) {
-            throw new \InvalidStateException(self::ATTEMPTED_TO_START_ALREADY_STARTED_GAME);
+            throw new \InvalidStateException(self::ERROR_GAME_IS_ALREADY_STARTED);
         }
 
         $this->generateTeams();
@@ -141,7 +135,7 @@ final class Game implements Listener
                 $this->generateFlamingos();
                 (new FlamingoGenerationEvent($this))->call();
             }),
-            $this->plugin->getConfig()->get('flamingo-delay') * 60 * 20
+            $this->plugin->getConfig()->getNested('flamingo.delay') * 60 * 20
         );
 
         (new GameStartEvent($this))->call();
@@ -183,7 +177,7 @@ final class Game implements Listener
             } while ($isFlamingo);
         };
 
-        $numFlamingos = round(self::FLAMINGO_PROPORTION * count($this->getPlayers()));
+        $numFlamingos = round($this->plugin->getConfig()->getNested('flamingo.proportion') * count($this->getPlayers()));
         $numTeams = $this->teamOrganization->getNumTeams();
         $flamingosPerTeam = $numTeams / $numFlamingos;
         for ($i = 1; $i <= $flamingosPerTeam; ++$i) {
@@ -202,14 +196,13 @@ final class Game implements Listener
     /**
      * Calculates the optimality of each team size and randomly picks one
      * (more optimized ones have a higher chance of being picked)
+     *
      * @return TeamOrganization
-     * @throws \InvalidStateException If the method reaches a state where it has not decided on a team size after
-     * having iterated through all the possibilities (should never happen, prob. space is 0-1 and so is random)
      */
     private function findTeamOrganization(): TeamOrganization
     {
         $scores = [];
-        foreach (self::TEAM_SIZE_OPTIMALITY as $possibleSize => $optimality) {
+        foreach ($this->plugin->getConfig()->get('team-size-optimality') as $possibleSize => $optimality) {
             $organization = TeamOrganization::calculate($possibleSize, count($this->players));
             $numTeamsWithNumericalSup = $organization->getNumTeamsWithNumericalSup();
             // No teams with num. sup. is a 10% bonus, otherwise normalize to 0.8-1
@@ -237,15 +230,6 @@ final class Game implements Listener
         foreach ($probSpace as $organization => $start) {
             if ($random <= $start) return unserialize($organization);
         }
-
-        throw new \InvalidStateException(
-            'Reached end of Game::findTeamSize() without having decided on a size' . PHP_EOL .
-            'count: ' . count($this->players) . PHP_EOL .
-            'scores: ' . var_export($scores, true) . PHP_EOL .
-            'probabilities: ' . var_export($probabilities, true) . PHP_EOL .
-            'prob. space: ' . var_export($probSpace, true) . PHP_EOL .
-            'random: ' . $random
-        );
     }
 
     /**
@@ -256,7 +240,9 @@ final class Game implements Listener
     {
         $player = $this->getPlayer($name);
         if ($player === null) {
-            throw new \InvalidStateException('Attempted to eliminate a dead or non-existing player');
+            throw new \InvalidStateException(
+                Utils::replaceTags(self::ERROR_PLAYING_IS_NOT_PLAYING, ['player' => $name])
+            );
         }
 
         $player->eliminate();
@@ -267,11 +253,11 @@ final class Game implements Listener
 
 
 
+
     private function nextTeamName(): string
     {
         return (string)rand();
     }
-
 
 
 
@@ -293,21 +279,33 @@ final class Game implements Listener
 
         $cause = $pmPlayer->getLastDamageCause();
         $deathMessageContainer = PlayerDeathEvent::deriveMessage($pmPlayer->getName(), $cause);
-        $deathMessageContainer->setParameter(0, "{$dead->getName()}@{$dead->getTeam()->getName()}");
+        $deathMessageContainer->setParameter(
+            0,
+            $this->plugin->getUtils()->formatMessage(
+                'player-nametag',
+                ['player' => $dead->getName(), 'team' => $dead->getTeam()->getName()]
+            )
+        );
 
         if ($cause instanceof EntityDamageByEntityEvent) {
-            $damager = $cause->getDamager();
-            if ($damager instanceof PMPlayer) {
-                if ($this->isPlayerPlaying($damager->getName())) {
-                    $damager = $this->getPlayer($damager->getName());
-                    $deathMessageContainer->setParameter(1, "{$damager->getName()}@{$damager->getTeam()->getName()}");
+            $killer = $cause->getDamager();
+            if ($killer instanceof PMPlayer) {
+                if ($this->isPlayerPlaying($killer->getName())) {
+                    $killer = $this->getPlayer($killer->getName());
+                    $deathMessageContainer->setParameter(
+                        1,
+                        $this->plugin->getUtils()->formatMessage(
+                            'player-nametag',
+                            ['player' => $killer->getName(), 'team' => $killer->getTeam()->getName()]
+                        )
+                    );
                 }
             }
         }
 
         if ($dead->getTeam()->isEliminated()) {
             $this->plugin->getServer()->broadcastMessage(
-                "Team {$dead->getTeam()->getName()} has been eliminated!",
+                $this->plugin->getUtils()->formatMessage('team-eliminated', ['team' => $dead->getTeam()->getName()]),
                 $this->getLevel()->getPlayers()
             );
         }

@@ -2,5 +2,11 @@
 version: '0.1'
 
 error:
-  incompatible-config-version: Incompatible config.yml version! Try deleting Flamingo/resources/config.yml and reboot the server.
-  incompatible-lang-version: Incompatible lang.yml version! Try deleting Flamingo/resources/lang.yml and reboot the server.
+  incompatible-config-version: 'Incompatible config.yml version! Try deleting Flamingo/resources/config.yml and reboot the server.'
+  incompatible-lang-version: 'Incompatible lang.yml version! Try deleting Flamingo/resources/lang.yml and reboot the server.'
+
+
+# What will be displayed in messages mentioning the player, ex. death message
+player-nametag: '&b%player%&7@&e%team%'
+
+team-eliminated: '&cTeam &e%team% &chas been eliminated!'

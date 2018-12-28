@@ -14,16 +14,19 @@ final class Flamingo extends PluginBase
 {
 
     /** @var string */
-    private const CONFIG_VERSION = '0.1';
+    private const ERROR_INCOMPATIBLE_CONFIG_VERSION = 'Incompatible config.yml version! Try deleting Flamingo/resources/config.yml and reboot the server.';
 
     /** @var string */
-    private const DEFAULT_INCOMPATIBLE_CONFIG_VERSION_ERROR = 'Incompatible config.yml version! Try deleting Flamingo/resources/config.yml and reboot the server.';
+    private const ERROR_INCOMPATIBLE_LANG_VERSION = 'Incompatible lang.yml version! Try deleting Flamingo/resources/lang.yml and reboot the server.';
 
     /** @var string */
-    private const LANG_VERSION = '0.1';
+    private const ERROR_GAME_IS_ALREADY_CREATED = 'Attempted to create game even though one already exists';
 
     /** @var string */
-    private const DEFAULT_INCOMPATIBLE_LANG_VERSION_ERROR = 'Incompatible lang.yml version! Try deleting Flamingo/resources/lang.yml and reboot the server.';
+    private const CONFIG_VERSION = '0.2';
+
+    /** @var string */
+    private const LANG_VERSION = '0.2';
 
     /** @var string */
     private const LANG_FILE = 'lang.yml';
@@ -36,6 +39,9 @@ final class Flamingo extends PluginBase
 
     /** @var Config */
     private $lang;
+
+    /** @var Utils */
+    private $utils;
 
     /** @var DataConnector */
     private $connector;
@@ -66,7 +72,7 @@ final class Flamingo extends PluginBase
         $config_version = $this->getConfig()->get('version');
         if (!Utils::areVersionsCompatible($config_version, self::CONFIG_VERSION)) {
             /** @var string $error */
-            $error = $this->getLang()->get('error.incompatible-config-version', null) ?? self::DEFAULT_INCOMPATIBLE_CONFIG_VERSION_ERROR;
+            $error = $this->getLang()->get('error.incompatible-config-version', null) ?? self::ERROR_INCOMPATIBLE_CONFIG_VERSION;
             $this->fail($error);
         }
 
@@ -74,9 +80,11 @@ final class Flamingo extends PluginBase
         $lang_version = $this->getLang()->get('version');
         if (!Utils::areVersionsCompatible($lang_version, self::LANG_VERSION)) {
             /** @var string $error */
-            $error = $this->getLang()->get('error.incompatible-lang-version', null) ?? self::DEFAULT_INCOMPATIBLE_LANG_VERSION_ERROR;
+            $error = $this->getLang()->get('error.incompatible-lang-version', null) ?? self::ERROR_INCOMPATIBLE_LANG_VERSION;
             $this->fail($error);
         }
+
+        $this->utils = new Utils($this);
 
         $this->connector = libasynql::create($this, $this->getConfig()->get('database'), ['mysql' => self::MYSQL_FILE]);
     }
@@ -93,6 +101,11 @@ final class Flamingo extends PluginBase
         return $this->lang;
     }
 
+    public function getUtils(): Utils
+    {
+        return $this->utils;
+    }
+
     public function getConnector(): DataConnector
     {
         return $this->connector;
@@ -106,7 +119,7 @@ final class Flamingo extends PluginBase
     public function newGame(Level $level): Game
     {
         if ($this->game instanceof Game) {
-            throw new \InvalidStateException('Attempted to create game even though one already exists');
+            throw new \InvalidStateException(self::ERROR_GAME_IS_ALREADY_CREATED);
         }
         return $this->game = new Game($this, $level);
     }
@@ -115,11 +128,6 @@ final class Flamingo extends PluginBase
     {
         return $this->game;
     }
-
-
-
-
-
 
 
 

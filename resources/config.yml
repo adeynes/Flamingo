@@ -1,5 +1,5 @@
 # DO NOT EDIT THE FOLLOWING LINE
-version: '0.1'
+version: '0.2'
 
 database:
   types: mysql # only mysql is supported
@@ -14,5 +14,17 @@ database:
   # Recommended: 1 for sqlite, 2 for MySQL. You may want to further increase this value if your MySQL connection is very slow.
   worker-limit: 2
 
-# Number of minutes until the flamingo are chosen
-flamingo-delay: 50
+# The optimality factor for each team size. This directly correlates with the probability of each one getting picked.
+# You can add or remove possible team sizes to your liking
+team-size-optimality:
+  2: 0.85
+  3: 0.98
+  4: 0.8
+  5: 0.45
+  6: 0.2
+
+flamingo:
+  # Number of minutes until the flamingo are chosen
+  delay: 50
+  # The proportion of flamingos to normal players
+  proportion: 0.26315789474 # 1/3.5
