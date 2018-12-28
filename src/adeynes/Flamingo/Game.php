@@ -3,13 +3,17 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo;
 
-use adeynes\Flamingo\event\FlamingoTeamsGenerationEvent;
+use adeynes\Flamingo\event\FlamingoGenerationEvent;
 use adeynes\Flamingo\event\GameStartEvent;
 use adeynes\Flamingo\struct\TeamOrganization;
 use adeynes\Flamingo\utils\Utils;
+use pocketmine\event\entity\EntityDamageByEntityEvent;
+use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerDeathEvent;
+use pocketmine\Player as PMPlayer;
 use pocketmine\scheduler\ClosureTask;
 
-final class Game
+final class Game implements Listener
 {
 
     /** @var string */
@@ -19,10 +23,10 @@ final class Game
     private const TEAM_SIZE_OPTIMALITY = [2 => 0.85, 3 => 0.98, 4 => 0.8, 5 => 0.45, 6 => 0.2];
 
     /**
-     * The number of flamingo teams will be 1 + floor(FLAMINGO_RATIO * numRegularTeams)
+     * The number of flamingos to normal players
      * @var float
      */
-    private const FLAMINGO_RATIO = 1/6;
+    private const FLAMINGO_PROPORTION = 1/3.5;
 
     /** @var Flamingo */
     private $plugin;
@@ -40,15 +44,16 @@ final class Game
     private $teamOrganization;
 
     /** @var Team[] */
-    private $regularTeams = [];
+    private $teams = [];
 
-    /** @var Team[] */
-    private $flamingoTeams = [];
+    /** @var Player[] */
+    private $flamingos;
 
     public function __construct(Flamingo $plugin, int $teamSize = null)
     {
         $this->plugin = $plugin;
         $this->teamSize = $teamSize;
+        $this->plugin->getServer()->getPluginManager()->registerEvents($this, $this->plugin);
     }
 
     public function isStarted(): bool
@@ -64,6 +69,26 @@ final class Game
         return $this->players;
     }
 
+    public function getPlayer(string $name): ?Player
+    {
+        return $this->getPlayers()[$name] ?? null;
+    }
+
+    public function isPlayerInGame(string $name): bool
+    {
+        return $this->getPlayer($name) instanceof Player;
+    }
+
+    public function isPlayerPlaying(string $name): bool
+    {
+        return $this->isPlayerInGame($name) && $this->getPlayer($name)->isPlaying();
+    }
+
+    public function isPlayerEliminated(string $name): bool
+    {
+        return $this->isPlayerInGame($name) && $this->getPlayer($name)->isEliminated();
+    }
+
     public function getTeamOrganization(): TeamOrganization
     {
         return $this->teamOrganization;
@@ -72,17 +97,9 @@ final class Game
     /**
      * @return Team[]
      */
-    public function getRegularTeams(): array
+    public function getTeams(): array
     {
-        return $this->regularTeams;
-    }
-
-    /**
-     * @return Team[]
-     */
-    public function getFlamingoTeams(): array
-    {
-        return $this->flamingoTeams;
+        return $this->teams;
     }
 
     public function addPlayers(Player ...$players): void
@@ -98,11 +115,11 @@ final class Game
             throw new \InvalidStateException(self::ATTEMPTED_TO_START_ALREADY_STARTED_GAME);
         }
 
-        $this->generateRegularTeams();
+        $this->generateTeams();
         $this->plugin->getScheduler()->scheduleDelayedTask(
             new ClosureTask(function (int $currentTick): void {
-                $this->generateFlamingoTeams();
-                (new FlamingoTeamsGenerationEvent($this))->call();
+                $this->generateFlamingos();
+                (new FlamingoGenerationEvent($this))->call();
             }),
             $this->plugin->getConfig()->get('flamingo-delay') * 60 * 20
         );
@@ -112,57 +129,54 @@ final class Game
         $this->isStarted = true;
     }
 
-    /**
-     * Generates the regular teams (flamingo are generated later)
-     * @throws \InvalidStateException If the actual remaining players after equal player distribution
-     * does not === the theoretical remainder in the TeamOrganization
-     */
-    private function generateRegularTeams(): void
+    private function generateTeams(): void
     {
         $this->teamOrganization = $org = $this->teamSize === null ? $this->findTeamSize() :
-                                  TeamOrganization::calculate($this->teamSize, count($this->players));
-        $playersNotDistributed = $this->players;
+                                  TeamOrganization::calculate($this->teamSize, count($this->getPlayers()));
+        $playersNotDistributed = $this->getPlayers();
 
-        $this->regularTeams = Utils::initArrayWithClosure(
+        $this->teams = Utils::initArrayWithClosure(
             function (int $i) use ($org, &$playersNotDistributed) {
-                $randPlayers = Utils::getRandomElems($this->players, $org->getTeamSize(), $playersNotDistributed);
-                return new Team(Team::TEAM_TYPE_REGULAR, $randPlayers);
+                $randPlayers = Utils::getRandomElems($this->getPlayers(), $org->getTeamSize(), $playersNotDistributed);
+                return new Team($this->nextTeamName(), $randPlayers);
             },
             $org->getNumTeams()
         );
 
-        $numExtraPlayers = $org->getNumTeamsWithNumericalSup();
-        // The actual remaining players need to === the theoretical remaining players
-        if (count($playersNotDistributed) !== $numExtraPlayers) {
-            throw new \InvalidStateException(
-                'Actual remaining players !== theoretical remainder in Game::generateRegularTeams' . PHP_EOL .
-                'theo. remainder: ' . $numExtraPlayers . PHP_EOL .
-                'original players: ' . var_export($this->players) . PHP_EOL .
-                'players not dist.: ' . var_export($playersNotDistributed) . PHP_EOL .
-                'reg. teams: ' . var_export($this->getRegularTeams())
-            );
-        };
-
         $remainingPlayers = array_values($playersNotDistributed);
-        $receivingTeams = Utils::getRandomElems($this->getRegularTeams(), $numExtraPlayers);
+        $receivingTeams = Utils::getRandomElems($this->getTeams(), count($remainingPlayers));
         array_walk($receivingTeams, function (Team $team, int $i) use ($remainingPlayers) {
             /** @var Team $team */
             $team->addPlayers($remainingPlayers[$i]);
         });
     }
 
-    private function generateFlamingoTeams(): void
+    private function generateFlamingos(): void
     {
-        $teamSize = $this->getTeamOrganization()->getTeamSize();
-        $numFlamingoTeams = 1 + floor(self::FLAMINGO_RATIO * $this->getTeamOrganization()->getNumTeams());
-        $flamingoPlayers = Utils::getRandomElems($this->players, $numFlamingoTeams * $teamSize);
-        $chunks = array_chunk($flamingoPlayers, $teamSize);
-        $this->flamingoTeams = Utils::initArrayWithClosure(
-            function (int $i) use ($chunks) {
-                return new Team(Team::TEAM_TYPE_FLAMINGO, $chunks[$i]);
-            },
-            $numFlamingoTeams
-        );
+        $makeRandPlayerFlamingo = function (Team $team): void {
+            do {
+                /** @var Player $randPlayer */
+                $randPlayer = Utils::getRandomElem($team->getPlayers());
+                if (!$isFlamingo = $randPlayer->isFlamingo()) {
+                    $randPlayer->setFlamingo(true);
+                }
+            } while ($isFlamingo);
+        };
+
+        $numFlamingos = round(self::FLAMINGO_PROPORTION * count($this->getPlayers()));
+        $numTeams = $this->teamOrganization->getNumTeams();
+        $flamingosPerTeam = $numTeams / $numFlamingos;
+        for ($i = 1; $i <= $flamingosPerTeam; ++$i) {
+            foreach ($this->getTeams() as $team) {
+                $makeRandPlayerFlamingo($team);
+            }
+        }
+        $numLeftoverFlamingos = $numTeams % $numFlamingos;
+        /** @var Team[] $receivingTeams */
+        $receivingTeams = Utils::getRandomElems($this->getTeams(), $numLeftoverFlamingos);
+        foreach ($receivingTeams as $team) {
+            $makeRandPlayerFlamingo($team);
+        }
     }
 
     /**
@@ -212,6 +226,65 @@ final class Game
             'prob. space: ' . var_export($probSpace, true) . PHP_EOL .
             'random: ' . $random
         );
+    }
+
+    /**
+     * @param string $name
+     * @throws \InvalidStateException If the player is dead or non-existing
+     */
+    public function eliminatePlayer(string $name): void
+    {
+        $player = $this->getPlayer($name);
+        if ($player === null) {
+            throw new \InvalidStateException('Attempted to eliminate a dead or non-existing player');
+        }
+
+        $player->eliminate();
+        unset($this->players[$name]);
+    }
+
+
+
+
+
+    private function nextTeamName(): string
+    {
+        return (string)rand();
+    }
+
+
+
+
+
+
+
+    /**
+     * @param PlayerDeathEvent $event
+     * @priority HIGHEST
+     */
+    public function onDeath(PlayerDeathEvent $event): void
+    {
+        $dead = $this->getPlayer($event->getPlayer()->getName());
+        $pmPlayer = $dead->getPmPlayer();
+        if (!$this->isPlayerPlaying($dead->getName())) {
+            return;
+        }
+
+        $cause = $pmPlayer->getLastDamageCause();
+        $deathMessageContainer = PlayerDeathEvent::deriveMessage($pmPlayer->getName(), $cause);
+        $deathMessageContainer->setParameter(0, "{$dead->getName()}@{$dead->getTeam()->getName()}");
+
+        if ($cause instanceof EntityDamageByEntityEvent) {
+            $damager = $cause->getDamager();
+            if ($damager instanceof PMPlayer) {
+                if ($this->isPlayerPlaying($damager->getName())) {
+                    $damager = $this->getPlayer($damager->getName());
+                    $deathMessageContainer->setParameter(1, "{$damager->getName()}@{$damager->getTeam()->getName()}");
+                }
+            }
+        }
+
+        $event->setDeathMessage($deathMessageContainer);
     }
 
 }

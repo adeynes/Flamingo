@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo;
 
+use adeynes\Flamingo\utils\Utils;
 use pocketmine\plugin\PluginBase;
 use pocketmine\utils\Config;
 use poggit\libasynql\DataConnector;
@@ -38,6 +39,9 @@ final class Flamingo extends PluginBase
     /** @var DataConnector */
     private $connector;
 
+    /** @var ?Game */
+    private $game = null;
+
     public static function getInstance(): Flamingo
     {
         return self::$instance;
@@ -59,7 +63,7 @@ final class Flamingo extends PluginBase
 
         /** @var string $config_version */
         $config_version = $this->getConfig()->get('version');
-        if (!$this->areVersionsCompatible($config_version, self::CONFIG_VERSION)) {
+        if (!Utils::areVersionsCompatible($config_version, self::CONFIG_VERSION)) {
             /** @var string $error */
             $error = $this->getLang()->get('error.incompatible-config-version', null) ?? self::DEFAULT_INCOMPATIBLE_CONFIG_VERSION_ERROR;
             $this->fail($error);
@@ -67,7 +71,7 @@ final class Flamingo extends PluginBase
 
         /** @var string $lang_version */
         $lang_version = $this->getLang()->get('version');
-        if (!$this->areVersionsCompatible($lang_version, self::LANG_VERSION)) {
+        if (!Utils::areVersionsCompatible($lang_version, self::LANG_VERSION)) {
             /** @var string $error */
             $error = $this->getLang()->get('error.incompatible-lang-version', null) ?? self::DEFAULT_INCOMPATIBLE_LANG_VERSION_ERROR;
             $this->fail($error);
@@ -93,17 +97,38 @@ final class Flamingo extends PluginBase
         return $this->connector;
     }
 
+    /**
+     * @param int|null $teamSize
+     * @return Game
+     * @throws \InvalidStateException If there is already a game created
+     */
+    public function newGame(int $teamSize = null): Game
+    {
+        if ($this->game instanceof Game) {
+            throw new \InvalidStateException('Attempted to create game even though one already exists');
+        }
+        return $this->game = new Game($this, $teamSize);
+    }
+
+    public function getGame(): ?Game
+    {
+        return $this->game;
+    }
+
+
+
+
+
+
+
+
+
+
+
     private function fail(string $reason): void
     {
         $this->getServer()->getLogger()->critical($reason);
         $this->getServer()->getPluginManager()->disablePlugin($this);
-    }
-
-    public function areVersionsCompatible(string $actual, string $minimum): bool
-    {
-        $actual = explode('.', $actual);
-        $minimum = explode('.', $minimum);
-        return $actual[0] === $minimum[0] && $actual[1] >= $minimum[1];
     }
 
 }

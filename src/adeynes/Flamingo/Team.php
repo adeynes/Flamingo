@@ -6,31 +6,25 @@ namespace adeynes\Flamingo;
 class Team
 {
 
-    /** @var int */
-    public const TEAM_TYPE_REGULAR = 2;
-
-    /** @var int */
-    public const TEAM_TYPE_FLAMINGO = 3;
-
-    /** @var int */
-    private $type;
+    /** @var string */
+    private $name;
 
     /** @var Player[] */
     private $players;
 
     /**
-     * @param int $type The type of team (TEAM_TYPE_REGULAR or TEAM_TYPE_FLAMINGO)
+     * @param string $name
      * @param Player[] $players
      */
-    public function __construct(int $type, array $players = [])
+    public function __construct(string $name, array $players = [])
     {
-        $this->type = $type;
+        $this->name = $name;
         $this->players = $players;
     }
 
-    public function getType(): int
+    public function getName(): string
     {
-        return $this->type;
+        return $this->name;
     }
 
     /**

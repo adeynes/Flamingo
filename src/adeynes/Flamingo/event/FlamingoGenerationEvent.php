@@ -6,7 +6,7 @@ namespace adeynes\Flamingo\event;
 use adeynes\Flamingo\Game;
 use pocketmine\event\Event;
 
-class FlamingoTeamsGenerationEvent extends Event
+class FlamingoGenerationEvent extends Event
 {
 
     /** @var Game[] */
