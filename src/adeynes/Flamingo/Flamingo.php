@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace adeynes\Flamingo;
 
 use adeynes\Flamingo\utils\Utils;
+use pocketmine\level\Level;
 use pocketmine\plugin\PluginBase;
 use pocketmine\utils\Config;
 use poggit\libasynql\DataConnector;
@@ -98,16 +99,16 @@ final class Flamingo extends PluginBase
     }
 
     /**
-     * @param int|null $teamSize
+     * @param Level $level
      * @return Game
      * @throws \InvalidStateException If there is already a game created
      */
-    public function newGame(int $teamSize = null): Game
+    public function newGame(Level $level): Game
     {
         if ($this->game instanceof Game) {
             throw new \InvalidStateException('Attempted to create game even though one already exists');
         }
-        return $this->game = new Game($this, $teamSize);
+        return $this->game = new Game($this, $level);
     }
 
     public function getGame(): ?Game

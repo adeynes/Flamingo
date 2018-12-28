@@ -10,6 +10,7 @@ use adeynes\Flamingo\utils\Utils;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerDeathEvent;
+use pocketmine\level\Level;
 use pocketmine\Player as PMPlayer;
 use pocketmine\scheduler\ClosureTask;
 
@@ -28,17 +29,20 @@ final class Game implements Listener
      */
     private const FLAMINGO_PROPORTION = 1/3.5;
 
+    /** @var bool */
+    private $isStarted = false;
+
     /** @var Flamingo */
     private $plugin;
 
-    /** @var bool */
-    private $isStarted = false;
+    /** @var Level */
+    private $level;
 
     /** @var Player[] */
     private $players = [];
 
-    /** @var ?int */
-    private $teamSize;
+    /** @var Player[] */
+    private $flamingos;
 
     /** @var TeamOrganization */
     private $teamOrganization;
@@ -46,19 +50,21 @@ final class Game implements Listener
     /** @var Team[] */
     private $teams = [];
 
-    /** @var Player[] */
-    private $flamingos;
-
-    public function __construct(Flamingo $plugin, int $teamSize = null)
+    public function __construct(Flamingo $plugin, Level $level)
     {
         $this->plugin = $plugin;
-        $this->teamSize = $teamSize;
+        $this->level = $level;
         $this->plugin->getServer()->getPluginManager()->registerEvents($this, $this->plugin);
     }
 
     public function isStarted(): bool
     {
         return $this->isStarted;
+    }
+
+    public function getLevel(): Level
+    {
+        return $this->level;
     }
 
     /**
@@ -89,6 +95,14 @@ final class Game implements Listener
         return $this->isPlayerInGame($name) && $this->getPlayer($name)->isEliminated();
     }
 
+    /**
+     * @return Player[]
+     */
+    public function getFlamingos(): array
+    {
+        return $this->flamingos;
+    }
+
     public function getTeamOrganization(): TeamOrganization
     {
         return $this->teamOrganization;
@@ -111,6 +125,7 @@ final class Game implements Listener
     {
         foreach ($players as $player) {
             $this->players[$player->getName()] = $player;
+            $player->getPmPlayer()->teleport($this->getLevel()->getSafeSpawn());
         }
     }
 
@@ -136,8 +151,7 @@ final class Game implements Listener
 
     private function generateTeams(): void
     {
-        $this->teamOrganization = $org = $this->teamSize === null ? $this->findTeamSize() :
-                                  TeamOrganization::calculate($this->teamSize, count($this->getPlayers()));
+        $this->teamOrganization = $org = $this->findTeamOrganization();
         $playersNotDistributed = $this->getPlayers();
 
         $this->teams = Utils::initArrayWithClosure(
@@ -164,6 +178,7 @@ final class Game implements Listener
                 $randPlayer = Utils::getRandomElem($team->getPlayers());
                 if (!$isFlamingo = $randPlayer->isFlamingo()) {
                     $randPlayer->setFlamingo(true);
+                    $this->flamingos[$randPlayer->getName()] = $randPlayer;
                 }
             } while ($isFlamingo);
         };
@@ -191,7 +206,7 @@ final class Game implements Listener
      * @throws \InvalidStateException If the method reaches a state where it has not decided on a team size after
      * having iterated through all the possibilities (should never happen, prob. space is 0-1 and so is random)
      */
-    private function findTeamSize(): TeamOrganization
+    private function findTeamOrganization(): TeamOrganization
     {
         $scores = [];
         foreach (self::TEAM_SIZE_OPTIMALITY as $possibleSize => $optimality) {
