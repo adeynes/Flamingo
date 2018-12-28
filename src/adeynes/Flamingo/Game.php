@@ -7,10 +7,14 @@ use adeynes\Flamingo\event\FlamingoGenerationEvent;
 use adeynes\Flamingo\event\GameStartEvent;
 use adeynes\Flamingo\struct\TeamOrganization;
 use adeynes\Flamingo\utils\Utils;
+use pocketmine\entity\Effect;
+use pocketmine\entity\EffectInstance;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerDeathEvent;
 use pocketmine\level\Level;
+use pocketmine\math\Vector2;
+use pocketmine\math\Vector3;
 use pocketmine\Player as PMPlayer;
 use pocketmine\scheduler\ClosureTask;
 
@@ -22,6 +26,11 @@ final class Game implements Listener
 
     /** @var string */
     public const ERROR_PLAYING_IS_NOT_PLAYING = 'Attempted to eliminate a dead or non-existing player %player%';
+
+    /** @var string */
+    public const ERROR_DIDNT_PICK_TEAM_ORG = 'No team organization has been picked. Are there team sizes defined config.yml@team-size-optimality?';
+
+    public const DEFAULT_TEAM_SIZE_OPTIMALITY = [2 => 0.8, 3 => 0.96, 4 => 0.88, 5 => 0.45, 6 => 0.2];
 
     /** @var bool */
     private $isStarted = false;
@@ -138,9 +147,64 @@ final class Game implements Listener
             $this->plugin->getConfig()->getNested('flamingo.delay') * 60 * 20
         );
 
-        (new GameStartEvent($this))->call();
+        $side = $this->plugin->getConfig()->getNested('map.side') ?? 1800;
+        $limits = [-$side/2, $side/2];
+        /** @var int $minDistance */
+        $minDistance = $this->plugin->getConfig()->getNested('map.minimum-spawn-distance') ?? 250;
+        /** @var Vector2[] $spawns */
+        $spawns = [];
+
+        $respectsMinDistance = function (Vector2 $vector) use ($minDistance, $spawns): bool {
+            foreach ($spawns as $spawn) {
+                if ($vector->distance($spawn) < $minDistance) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        foreach ($this->getTeams() as $team) {
+            for ($i = 0; $i < $minDistance; ++$i) {
+                $spawn = new Vector2(rand(...$limits), rand(...$limits));
+                if ($respectsMinDistance($spawn)) {
+                    $spawns[$team->getName()] = $spawn;
+                    continue 2; // go to the next team, don't skip to the minDistance deprecation
+                }
+            }
+            // We haven't been able to fit the team in minDistance tries, deprecate it
+            $minDistance *= 0.825;
+        }
+
+        // (Should) cancel out all damage
+        $resistance = new EffectInstance(Effect::getEffect(Effect::RESISTANCE), 30 * 20, 4);
+        // Regen 1 health every other tick
+        $regen = new EffectInstance(Effect::getEffect(Effect::REGENERATION), 30 * 20, 4);
+        // Give them resistance & regen for 30 seconds to negate the fall damage
+        foreach ($this->getPlayers() as $player) {
+            $player->getPmPlayer()->addEffect($resistance);
+            $player->getPmPlayer()->addEffect($regen);
+        }
+
+        foreach ($spawns as $teamName => $spawn) {
+            foreach ($this->getTeam($teamName)->getPlayers() as $player) {
+                // Spawn at a random position 15 blocks away from the spawn
+                $randX = rand(-15, 15);
+                $randZ = sqrt(15**2 - $randX**2);
+                // Randomize randZ sign (else it would always be positive)
+                if (rand(0, 1)) {
+                    $randZ *= -1;
+                }
+                $x = $spawn->getFloorX() + $randX;
+                // Vector2->getY() is our z value
+                $z = $spawn->getFloorY() + $randZ;
+                // They spawn 30 blocks up
+                $y = $this->getLevel()->getHighestBlockAt($x, $z) + 30;
+                $player->getPmPlayer()->teleport(new Vector3($x, $y, $z));
+            }
+        }
 
         $this->isStarted = true;
+        (new GameStartEvent($this))->call();
     }
 
     private function generateTeams(): void
@@ -150,6 +214,7 @@ final class Game implements Listener
 
         $this->teams = Utils::initArrayWithClosure(
             function (int $i) use ($org, &$playersNotDistributed) {
+                /** @var Player[] $randPlayers */
                 $randPlayers = Utils::getRandomElems($this->getPlayers(), $org->getTeamSize(), $playersNotDistributed);
                 return new Team($this->nextTeamName(), $randPlayers);
             },
@@ -162,6 +227,16 @@ final class Game implements Listener
             /** @var Team $team */
             $team->addPlayers($remainingPlayers[$i]);
         });
+
+        // Set the nametags
+        foreach ($this->getPlayers() as $player) {
+            $player->getPmPlayer()->setNameTag(
+                $this->plugin->getUtils()->formatMessage(
+                    'player-nametag',
+                    ['name' => $player->getName(), 'team' => $player->getTeam()->getName()]
+                )
+            );
+        }
     }
 
     private function generateFlamingos(): void
@@ -202,8 +277,15 @@ final class Game implements Listener
     private function findTeamOrganization(): TeamOrganization
     {
         $scores = [];
-        foreach ($this->plugin->getConfig()->get('team-size-optimality') as $possibleSize => $optimality) {
-            $organization = TeamOrganization::calculate($possibleSize, count($this->players));
+        $sizes = $this->plugin->getConfig()->get('team-size-optimality', null);
+        if (is_null($sizes)) {
+            $sizes = self::DEFAULT_TEAM_SIZE_OPTIMALITY;
+            $this->plugin->getServer()->getLogger()->warning(self::ERROR_DIDNT_PICK_TEAM_ORG);
+            $this->plugin->getServer()->getLogger()->notice('Defaulting to ' . var_export($sizes, true));
+        }
+
+        foreach ($sizes as $size => $optimality) {
+            $organization = TeamOrganization::calculate($size, count($this->players));
             $numTeamsWithNumericalSup = $organization->getNumTeamsWithNumericalSup();
             // No teams with num. sup. is a 10% bonus, otherwise normalize to 0.8-1
             $numericalSupMalus = ($numTeamsWithNumericalSup === 0 ? 1.1 : (1 - 0.2 * (1 - 1/$numTeamsWithNumericalSup)));
@@ -230,6 +312,8 @@ final class Game implements Listener
         foreach ($probSpace as $organization => $start) {
             if ($random <= $start) return unserialize($organization);
         }
+
+        throw new \InvalidStateException(self::ERROR_DIDNT_PICK_TEAM_ORG);
     }
 
     /**

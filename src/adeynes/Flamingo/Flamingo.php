@@ -23,7 +23,7 @@ final class Flamingo extends PluginBase
     private const ERROR_GAME_IS_ALREADY_CREATED = 'Attempted to create game even though one already exists';
 
     /** @var string */
-    private const CONFIG_VERSION = '0.2';
+    private const CONFIG_VERSION = '0.3';
 
     /** @var string */
     private const LANG_VERSION = '0.2';

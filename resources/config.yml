@@ -1,5 +1,5 @@
 # DO NOT EDIT THE FOLLOWING LINE
-version: '0.2'
+version: '0.3'
 
 database:
   types: mysql # only mysql is supported
@@ -17,9 +17,9 @@ database:
 # The optimality factor for each team size. This directly correlates with the probability of each one getting picked.
 # You can add or remove possible team sizes to your liking
 team-size-optimality:
-  2: 0.85
-  3: 0.98
-  4: 0.8
+  2: 0.8
+  3: 0.96
+  4: 0.88
   5: 0.45
   6: 0.2
 
@@ -28,3 +28,11 @@ flamingo:
   delay: 50
   # The proportion of flamingos to normal players
   proportion: 0.26315789474 # 1/3.5
+
+map:
+  # The length of the side of the map, ex. if side is 1500, the map will span from -750/-750 to 750/750
+  side: 1800
+  # The minimum distance separating two teams
+  # Will be overridden if the plugin cannot find a spot to spawn a team (after as many iterations as the minimum distance)
+  # 1800 side with 250 minimum distance can fit at least 32 teams 99% of the time
+  minimum-spawn-distance: 250
