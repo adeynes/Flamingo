@@ -102,6 +102,11 @@ final class Game implements Listener
         return $this->teams;
     }
 
+    public function getTeam(string $name): ?Team
+    {
+        return $this->getTeams()[$name] ?? null;
+    }
+
     public function addPlayers(Player ...$players): void
     {
         foreach ($players as $player) {
@@ -265,6 +270,7 @@ final class Game implements Listener
     public function onDeath(PlayerDeathEvent $event): void
     {
         $dead = $this->getPlayer($event->getPlayer()->getName());
+        $dead->eliminate();
         $pmPlayer = $dead->getPmPlayer();
         if (!$this->isPlayerPlaying($dead->getName())) {
             return;
@@ -282,6 +288,18 @@ final class Game implements Listener
                     $deathMessageContainer->setParameter(1, "{$damager->getName()}@{$damager->getTeam()->getName()}");
                 }
             }
+        }
+
+        if ($dead->getTeam()->isEliminated()) {
+            $this->plugin->getServer()->broadcastMessage(
+                "Team {$dead->getTeam()->getName()} has been eliminated!",
+                array_map(
+                    function (Player $player): PMPlayer {
+                        return $player->getPmPlayer();
+                    },
+                    $this->getPlayers()
+                )
+            );
         }
 
         $event->setDeathMessage($deathMessageContainer);

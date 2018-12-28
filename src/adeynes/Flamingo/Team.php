@@ -42,9 +42,19 @@ class Team
         }
     }
 
-    public function removePlayer(Player $player): void
+    public function isPlaying(): bool
     {
-        unset($this->players[$player->getName()]);
+        foreach ($this->getPlayers() as $player) {
+            if ($player->isPlaying()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public function isEliminated(): bool
+    {
+        return !$this->isPlaying();
     }
 
 }
