@@ -22,6 +22,9 @@ class Team
         $this->players = $players;
     }
 
+    /**
+     * @return string
+     */
     public function getName(): string
     {
         return $this->name;
@@ -42,6 +45,11 @@ class Team
         }
     }
 
+    /**
+     * Are there still players in this team who are still playing (alive)?
+     *
+     * @return bool
+     */
     public function isPlaying(): bool
     {
         foreach ($this->getPlayers() as $player) {
@@ -52,6 +60,11 @@ class Team
         return false;
     }
 
+    /**
+     * Have all the players in this team been eliminated (died)?
+     *
+     * @return bool
+     */
     public function isEliminated(): bool
     {
         return !$this->isPlaying();

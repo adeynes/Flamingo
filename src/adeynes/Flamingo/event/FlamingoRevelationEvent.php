@@ -6,7 +6,10 @@ namespace adeynes\Flamingo\event;
 use adeynes\Flamingo\Game;
 use pocketmine\event\Event;
 
-class FlamingoGenerationEvent extends Event
+/**
+ * Triggered when flamingos are revealed
+ */
+class FlamingoRevelationEvent extends Event
 {
 
     /** @var Game[] */
@@ -20,6 +23,9 @@ class FlamingoGenerationEvent extends Event
         $this->game = $game;
     }
 
+    /**
+     * @return Game
+     */
     public function getGame(): Game
     {
         return $this->game;

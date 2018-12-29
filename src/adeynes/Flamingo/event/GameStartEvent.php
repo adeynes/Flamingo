@@ -6,6 +6,9 @@ namespace adeynes\Flamingo\event;
 use adeynes\Flamingo\Game;
 use pocketmine\event\Event;
 
+/**
+ * Triggered when a game is started
+ */
 class GameStartEvent extends Event
 {
 
@@ -20,6 +23,9 @@ class GameStartEvent extends Event
         $this->game = $game;
     }
 
+    /**
+     * @return Game
+     */
     public function getGame(): Game
     {
         return $this->game;

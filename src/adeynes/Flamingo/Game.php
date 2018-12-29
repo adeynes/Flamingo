@@ -3,9 +3,10 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo;
 
-use adeynes\Flamingo\event\FlamingoGenerationEvent;
+use adeynes\Flamingo\event\FlamingoRevelationEvent;
 use adeynes\Flamingo\event\GameStartEvent;
-use adeynes\Flamingo\struct\TeamOrganization;
+use adeynes\Flamingo\utils\ConfigKeys;
+use adeynes\Flamingo\utils\LangKeys;
 use adeynes\Flamingo\utils\Utils;
 use pocketmine\entity\Effect;
 use pocketmine\entity\EffectInstance;
@@ -25,18 +26,23 @@ final class Game implements Listener
     public const ERROR_GAME_IS_ALREADY_STARTED = 'Attempted to start a game that was already started';
 
     /** @var string */
-    public const ERROR_PLAYING_IS_NOT_PLAYING = 'Attempted to eliminate a dead or non-existing player %player%';
+    public const ERROR_PLAYER_IS_NOT_PLAYING = 'Attempted to eliminate a dead or non-existing player %player%';
 
-    /** @var string */
-    public const ERROR_DIDNT_PICK_TEAM_ORG = 'No team organization has been picked. Are there team sizes defined config.yml@team-size-optimality?';
+    /**
+     * The factor by which the minimum spawn distance will be multiplied if a team cannot be fitted
+     *
+     * @var float
+     */
+    private const SPAWN_DISTANCE_DEPRECATION_FACTOR = 0.825;
 
-    public const DEFAULT_TEAM_SIZE_OPTIMALITY = [2 => 0.8, 3 => 0.96, 4 => 0.88, 5 => 0.45, 6 => 0.2];
+    /** @var Flamingo */
+    private $plugin;
 
     /** @var bool */
     private $isStarted = false;
 
-    /** @var Flamingo */
-    private $plugin;
+    /** @var TeamManager */
+    private $teamManager;
 
     /** @var Level */
     private $level;
@@ -47,24 +53,41 @@ final class Game implements Listener
     /** @var Player[] */
     private $flamingos;
 
-    /** @var TeamOrganization */
-    private $teamOrganization;
-
-    /** @var Team[] */
-    private $teams = [];
-
     public function __construct(Flamingo $plugin, Level $level)
     {
         $this->plugin = $plugin;
+        $this->teamManager = new TeamManager($this);
         $this->level = $level;
         $this->plugin->getServer()->getPluginManager()->registerEvents($this, $this->plugin);
     }
 
+    /**
+     * @return Flamingo
+     */
+    public function getPlugin(): Flamingo
+    {
+        return $this->plugin;
+    }
+
+    /**
+     * @return bool
+     */
     public function isStarted(): bool
     {
         return $this->isStarted;
     }
 
+    /**
+     * @return TeamManager
+     */
+    public function getTeamManager(): TeamManager
+    {
+        return $this->teamManager;
+    }
+
+    /**
+     * @return Level
+     */
     public function getLevel(): Level
     {
         return $this->level;
@@ -78,24 +101,24 @@ final class Game implements Listener
         return $this->players;
     }
 
+    /**
+     * @param string $name
+     * @return Player|null
+     */
     public function getPlayer(string $name): ?Player
     {
         return $this->getPlayers()[$name] ?? null;
     }
 
-    public function isPlayerInGame(string $name): bool
+    /**
+     * @param Player ...$players
+     */
+    public function addPlayers(Player ...$players): void
     {
-        return $this->getPlayer($name) instanceof Player;
-    }
-
-    public function isPlayerPlaying(string $name): bool
-    {
-        return $this->isPlayerInGame($name) && $this->getPlayer($name)->isPlaying();
-    }
-
-    public function isPlayerEliminated(string $name): bool
-    {
-        return $this->isPlayerInGame($name) && $this->getPlayer($name)->isEliminated();
+        foreach ($players as $player) {
+            $this->players[$player->getName()] = $player;
+            $player->getPmPlayer()->teleport($this->getLevel()->getSafeSpawn());
+        }
     }
 
     /**
@@ -106,51 +129,39 @@ final class Game implements Listener
         return $this->flamingos;
     }
 
-    public function getTeamOrganization(): TeamOrganization
-    {
-        return $this->teamOrganization;
-    }
-
     /**
-     * @return Team[]
+     * Starts the game
+     *
+     * This generates teams, flamingos, and teleports the teams to a randomized spawnpoint of the map.
      */
-    public function getTeams(): array
-    {
-        return $this->teams;
-    }
-
-    public function getTeam(string $name): ?Team
-    {
-        return $this->getTeams()[$name] ?? null;
-    }
-
-    public function addPlayers(Player ...$players): void
-    {
-        foreach ($players as $player) {
-            $this->players[$player->getName()] = $player;
-            $player->getPmPlayer()->teleport($this->getLevel()->getSafeSpawn());
-        }
-    }
-
     public function start(): void
     {
         if ($this->isStarted()) {
             throw new \InvalidStateException(self::ERROR_GAME_IS_ALREADY_STARTED);
         }
 
-        $this->generateTeams();
+        $this->getTeamManager()->generateTeams();
+
+        // Set the player's nametags (they will have their team in it)
+        $this->doToAllPlayers(function (Player $player): void {
+            $player->getPmPlayer()->setNameTag($player->getNameTag());
+        });
+
+        // Flamingos are picked at the start of the game, but revealed later (config#flamingo.revelation-delay)
+        $this->pickFlamingos();
         $this->plugin->getScheduler()->scheduleDelayedTask(
             new ClosureTask(function (int $currentTick): void {
-                $this->generateFlamingos();
-                (new FlamingoGenerationEvent($this))->call();
+                $this->revealFlamingos();
+                (new FlamingoRevelationEvent($this))->call();
             }),
-            $this->plugin->getConfig()->getNested('flamingo.delay') * 60 * 20
+            $this->plugin->getConfig()->getNested(ConfigKeys::FLAMINGO_REVELATION_DELAY) * 60 * 20
         );
 
-        $side = $this->plugin->getConfig()->getNested('map.side') ?? 1800;
+        // 99% of the time, at least 32 teams can be fit with the 1800/250 defaults
+        $side = $this->plugin->getConfig()->getNested(ConfigKeys::MAP_SIDE) ?? 1800;
         $limits = [-$side/2, $side/2];
         /** @var int $minDistance */
-        $minDistance = $this->plugin->getConfig()->getNested('map.minimum-spawn-distance') ?? 250;
+        $minDistance = $this->plugin->getConfig()->getNested(ConfigKeys::MINIMUM_SPAWN_DISTANCE) ?? 250;
         /** @var Vector2[] $spawns */
         $spawns = [];
 
@@ -163,7 +174,7 @@ final class Game implements Listener
             return true;
         };
 
-        foreach ($this->getTeams() as $team) {
+        foreach ($this->getTeamManager()->getTeams() as $team) {
             for ($i = 0; $i < $minDistance; ++$i) {
                 $spawn = new Vector2(rand(...$limits), rand(...$limits));
                 if ($respectsMinDistance($spawn)) {
@@ -172,21 +183,21 @@ final class Game implements Listener
                 }
             }
             // We haven't been able to fit the team in minDistance tries, deprecate it
-            $minDistance *= 0.825;
+            $minDistance *= self::SPAWN_DISTANCE_DEPRECATION_FACTOR;
         }
 
         // (Should) cancel out all damage
         $resistance = new EffectInstance(Effect::getEffect(Effect::RESISTANCE), 30 * 20, 4);
         // Regen 1 health every other tick
         $regen = new EffectInstance(Effect::getEffect(Effect::REGENERATION), 30 * 20, 4);
-        // Give them resistance & regen for 30 seconds to negate the fall damage
-        foreach ($this->getPlayers() as $player) {
+        // Give all players resistance & regen for 30 seconds to negate the fall damage
+        $this->doToAllPlayers(function (Player $player) use ($resistance, $regen): void {
             $player->getPmPlayer()->addEffect($resistance);
             $player->getPmPlayer()->addEffect($regen);
-        }
+        });
 
         foreach ($spawns as $teamName => $spawn) {
-            foreach ($this->getTeam($teamName)->getPlayers() as $player) {
+            foreach ($this->getTeamManager()->getTeam($teamName)->getPlayers() as $player) {
                 // Spawn at a random position 15 blocks away from the spawn
                 $randX = rand(-15, 15);
                 $randZ = sqrt(15**2 - $randX**2);
@@ -207,39 +218,13 @@ final class Game implements Listener
         (new GameStartEvent($this))->call();
     }
 
-    private function generateTeams(): void
-    {
-        $this->teamOrganization = $org = $this->findTeamOrganization();
-        $playersNotDistributed = $this->getPlayers();
-
-        $this->teams = Utils::initArrayWithClosure(
-            function (int $i) use ($org, &$playersNotDistributed) {
-                /** @var Player[] $randPlayers */
-                $randPlayers = Utils::getRandomElems($this->getPlayers(), $org->getTeamSize(), $playersNotDistributed);
-                return new Team($this->nextTeamName(), $randPlayers);
-            },
-            $org->getNumTeams()
-        );
-
-        $remainingPlayers = array_values($playersNotDistributed);
-        $receivingTeams = Utils::getRandomElems($this->getTeams(), count($remainingPlayers));
-        array_walk($receivingTeams, function (Team $team, int $i) use ($remainingPlayers) {
-            /** @var Team $team */
-            $team->addPlayers($remainingPlayers[$i]);
-        });
-
-        // Set the nametags
-        foreach ($this->getPlayers() as $player) {
-            $player->getPmPlayer()->setNameTag(
-                $this->plugin->getUtils()->formatMessage(
-                    'player-nametag',
-                    ['name' => $player->getName(), 'team' => $player->getTeam()->getName()]
-                )
-            );
-        }
-    }
-
-    private function generateFlamingos(): void
+    /**
+     * Picks the flamingos
+     *
+     * Flamingos are picked at the beginning of the game, but revealed after a specified amount of time
+     * (defined in config#flamingo.delay)
+     */
+    private function pickFlamingos(): void
     {
         $makeRandPlayerFlamingo = function (Team $team): void {
             do {
@@ -253,68 +238,31 @@ final class Game implements Listener
         };
 
         $numFlamingos = round($this->plugin->getConfig()->getNested('flamingo.proportion') * count($this->getPlayers()));
-        $numTeams = $this->teamOrganization->getNumTeams();
+        $numTeams = $this->getTeamManager()->getOrganization()->getNumTeams();
         $flamingosPerTeam = $numTeams / $numFlamingos;
+        $teams = $this->getTeamManager()->getTeams();
         for ($i = 1; $i <= $flamingosPerTeam; ++$i) {
-            foreach ($this->getTeams() as $team) {
+            foreach ($teams as $team) {
                 $makeRandPlayerFlamingo($team);
             }
         }
         $numLeftoverFlamingos = $numTeams % $numFlamingos;
         /** @var Team[] $receivingTeams */
-        $receivingTeams = Utils::getRandomElems($this->getTeams(), $numLeftoverFlamingos);
+        $receivingTeams = Utils::getRandomElems($teams, $numLeftoverFlamingos);
         foreach ($receivingTeams as $team) {
             $makeRandPlayerFlamingo($team);
         }
     }
 
     /**
-     * Calculates the optimality of each team size and randomly picks one
-     * (more optimized ones have a higher chance of being picked)
-     *
-     * @return TeamOrganization
+     * Reveals to those concerned if they are a flamingo
      */
-    private function findTeamOrganization(): TeamOrganization
+    public function revealFlamingos(): void
     {
-        $scores = [];
-        $sizes = $this->plugin->getConfig()->get('team-size-optimality', null);
-        if (is_null($sizes)) {
-            $sizes = self::DEFAULT_TEAM_SIZE_OPTIMALITY;
-            $this->plugin->getServer()->getLogger()->warning(self::ERROR_DIDNT_PICK_TEAM_ORG);
-            $this->plugin->getServer()->getLogger()->notice('Defaulting to ' . var_export($sizes, true));
-        }
 
-        foreach ($sizes as $size => $optimality) {
-            $organization = TeamOrganization::calculate($size, count($this->players));
-            $numTeamsWithNumericalSup = $organization->getNumTeamsWithNumericalSup();
-            // No teams with num. sup. is a 10% bonus, otherwise normalize to 0.8-1
-            $numericalSupMalus = ($numTeamsWithNumericalSup === 0 ? 1.1 : (1 - 0.2 * (1 - 1/$numTeamsWithNumericalSup)));
-            $score = 1 * $optimality * $numericalSupMalus;
-            $scores[serialize($organization)] = $score;
-        }
-
-        $total = array_sum($scores);
-        $probabilities = array_map(
-            function (float $score) use ($total) { return $score / $total; },
-            $scores
-        );
-
-        // Construct a structure where each numTeam occupies a certain amount of the probability space
-        $probSpace = [];
-        $i = 1;
-        foreach ($probabilities as $organization => $probability) {
-            $probSpace[$organization] = array_sum(array_slice($probabilities, 0, $i));
-            ++$i;
-        }
-
-        // Normalize to 0-1
-        $random = rand() / getrandmax();
-        foreach ($probSpace as $organization => $start) {
-            if ($random <= $start) return unserialize($organization);
-        }
-
-        throw new \InvalidStateException(self::ERROR_DIDNT_PICK_TEAM_ORG);
     }
+
+
 
     /**
      * @param string $name
@@ -325,22 +273,12 @@ final class Game implements Listener
         $player = $this->getPlayer($name);
         if ($player === null) {
             throw new \InvalidStateException(
-                Utils::replaceTags(self::ERROR_PLAYING_IS_NOT_PLAYING, ['player' => $name])
+                Utils::replaceTags(self::ERROR_PLAYER_IS_NOT_PLAYING, ['player' => $name])
             );
         }
 
         $player->eliminate();
         unset($this->players[$name]);
-    }
-
-
-
-
-
-
-    private function nextTeamName(): string
-    {
-        return (string)rand();
     }
 
 
@@ -357,44 +295,49 @@ final class Game implements Listener
         $dead = $this->getPlayer($event->getPlayer()->getName());
         $dead->eliminate();
         $pmPlayer = $dead->getPmPlayer();
-        if (!$this->isPlayerPlaying($dead->getName())) {
+        if ($this->getPlayer($dead->getName()) === null || $dead->isEliminated()) {
             return;
         }
 
         $cause = $pmPlayer->getLastDamageCause();
         $deathMessageContainer = PlayerDeathEvent::deriveMessage($pmPlayer->getName(), $cause);
-        $deathMessageContainer->setParameter(
-            0,
-            $this->plugin->getUtils()->formatMessage(
-                'player-nametag',
-                ['player' => $dead->getName(), 'team' => $dead->getTeam()->getName()]
-            )
-        );
+        $deathMessageContainer->setParameter(0, $dead->getNameTag());
 
         if ($cause instanceof EntityDamageByEntityEvent) {
             $killer = $cause->getDamager();
             if ($killer instanceof PMPlayer) {
-                if ($this->isPlayerPlaying($killer->getName())) {
+                if ($this->getPlayer($killer->getName()) instanceof Player) {
                     $killer = $this->getPlayer($killer->getName());
-                    $deathMessageContainer->setParameter(
-                        1,
-                        $this->plugin->getUtils()->formatMessage(
-                            'player-nametag',
-                            ['player' => $killer->getName(), 'team' => $killer->getTeam()->getName()]
-                        )
-                    );
+                    $deathMessageContainer->setParameter(1, $killer->getNameTag());
                 }
             }
         }
 
         if ($dead->getTeam()->isEliminated()) {
             $this->plugin->getServer()->broadcastMessage(
-                $this->plugin->getUtils()->formatMessage('team-eliminated', ['team' => $dead->getTeam()->getName()]),
+                Utils::getInstance()->formatMessage(LangKeys::TEAM_ELIMINATED, ['team' => $dead->getTeam()->getName()]),
                 $this->getLevel()->getPlayers()
             );
         }
 
         $event->setDeathMessage($deathMessageContainer);
+    }
+
+
+
+
+
+
+    /**
+     * Passed each player to a specified closure
+     *
+     * @param \Closure $closure
+     */
+    public function doToAllPlayers(\Closure $closure): void
+    {
+        foreach ($this->getPlayers() as $player) {
+            $closure($player);
+        }
     }
 
 }

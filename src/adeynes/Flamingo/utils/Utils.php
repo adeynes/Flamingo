@@ -6,13 +6,20 @@ namespace adeynes\Flamingo\utils;
 use adeynes\Flamingo\Flamingo;
 use pocketmine\utils\TextFormat;
 
+/**
+ * Utility class
+ *
+ * Static methods at the beginning of the class are independent from the Flamingo instance.
+ * Non-static ones are dependent on the plugin instance (ex. for config stuff).
+ * This class is singleton for easy access.
+ */
 final class Utils
 {
 
     /**
      * Checks if a version (major.minor) is compatible with a minimum version (major.minor)
      *
-     * They are compatible if: (1) major matches; (2) given version's minor is >= minimum version's minor
+     * They are compatible if: (1) major matches; (2) given version's minor is >= minimum version's minor.
      *
      * @param string $actual
      * @param string $minimum
@@ -24,6 +31,7 @@ final class Utils
         $minimum = explode('.', $minimum);
         return $actual[0] === $minimum[0] && $actual[1] >= $minimum[1];
     }
+
 
 
     /**
@@ -84,7 +92,7 @@ final class Utils
     /**
      * Replaces all tags (enclosed between 2 %, ex. %tag%) with the corresponding value in a given template
      *
-     * Passing ['tag' => 'my cool tag'] to 'this is %tag%' will return 'this is my cool tag'
+     * Passing ['tag' => 'my cool tag'] to 'this is %tag%' will return 'this is my cool tag'.
      *
      * @param string $template
      * @param array $data [tag name => replacement]
@@ -115,12 +123,39 @@ final class Utils
 
 
 
+    /** @var Utils */
+    private static $instance;
+
     /** @var Flamingo */
     private $plugin;
 
-    public function __construct(Flamingo $plugin)
+    /**
+     * This is a singleton, so private constructor
+     *
+     * @param Flamingo $plugin
+     */
+    private function __construct(Flamingo $plugin)
     {
         $this->plugin = $plugin;
+    }
+
+    /**
+     * Create the Utils instance
+     *
+     * @param Flamingo $plugin
+     * @return Utils
+     */
+    public static function new(Flamingo $plugin): Utils
+    {
+        return self::$instance = new Utils($plugin);
+    }
+
+    /**
+     * @return Utils
+     */
+    public static function getInstance(): Utils
+    {
+        return self::$instance;
     }
 
     /**
