@@ -21,4 +21,13 @@ interface LangKeys
     /** @var string */
     public const TEAM_ELIMINATED = 'team-eliminated';
 
+    /** @var string */
+    public const PLAYER_IS_FLAMINGO = 'revelation.player-is-flamingo';
+
+    /** @var string */
+    public const PLAYER_ISNT_FLAMINGO = 'revelation.player-isnt-flamingo';
+
+    /** @var string */
+    public const FLAMINGO_COUNT = 'revelation.flamingo-count';
+
 }

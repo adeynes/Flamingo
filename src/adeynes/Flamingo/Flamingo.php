@@ -28,7 +28,7 @@ final class Flamingo extends PluginBase
     private const CONFIG_VERSION = '0.3';
 
     /** @var string */
-    private const LANG_VERSION = '0.2';
+    private const LANG_VERSION = '0.3';
 
     /** @var string */
     private const LANG_FILE = 'lang.yml';

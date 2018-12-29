@@ -58,7 +58,7 @@ final class Game implements Listener
         $this->plugin = $plugin;
         $this->teamManager = new TeamManager($this);
         $this->level = $level;
-        $this->plugin->getServer()->getPluginManager()->registerEvents($this, $this->plugin);
+        $this->getPlugin()->getServer()->getPluginManager()->registerEvents($this, $this->getPlugin());
     }
 
     /**
@@ -149,19 +149,19 @@ final class Game implements Listener
 
         // Flamingos are picked at the start of the game, but revealed later (config#flamingo.revelation-delay)
         $this->pickFlamingos();
-        $this->plugin->getScheduler()->scheduleDelayedTask(
+        $this->getPlugin()->getScheduler()->scheduleDelayedTask(
             new ClosureTask(function (int $currentTick): void {
                 $this->revealFlamingos();
                 (new FlamingoRevelationEvent($this))->call();
             }),
-            $this->plugin->getConfig()->getNested(ConfigKeys::FLAMINGO_REVELATION_DELAY) * 60 * 20
+            $this->getPlugin()->getConfig()->getNested(ConfigKeys::FLAMINGO_REVELATION_DELAY) * 60 * 20
         );
 
         // 99% of the time, at least 32 teams can be fit with the 1800/250 defaults
-        $side = $this->plugin->getConfig()->getNested(ConfigKeys::MAP_SIDE) ?? 1800;
+        $side = $this->getPlugin()->getConfig()->getNested(ConfigKeys::MAP_SIDE) ?? 1800;
         $limits = [-$side/2, $side/2];
         /** @var int $minDistance */
-        $minDistance = $this->plugin->getConfig()->getNested(ConfigKeys::MINIMUM_SPAWN_DISTANCE) ?? 250;
+        $minDistance = $this->getPlugin()->getConfig()->getNested(ConfigKeys::MINIMUM_SPAWN_DISTANCE) ?? 250;
         /** @var Vector2[] $spawns */
         $spawns = [];
 
@@ -187,9 +187,9 @@ final class Game implements Listener
         }
 
         // (Should) cancel out all damage
-        $resistance = new EffectInstance(Effect::getEffect(Effect::RESISTANCE), 30 * 20, 4);
+        $resistance = new EffectInstance(Effect::getEffect(Effect::RESISTANCE), 30*20, 4);
         // Regen 1 health every other tick
-        $regen = new EffectInstance(Effect::getEffect(Effect::REGENERATION), 30 * 20, 4);
+        $regen = new EffectInstance(Effect::getEffect(Effect::REGENERATION), 30*20, 4);
         // Give all players resistance & regen for 30 seconds to negate the fall damage
         $this->doToAllPlayers(function (Player $player) use ($resistance, $regen): void {
             $player->getPmPlayer()->addEffect($resistance);
@@ -237,7 +237,7 @@ final class Game implements Listener
             } while ($isFlamingo);
         };
 
-        $numFlamingos = round($this->plugin->getConfig()->getNested('flamingo.proportion') * count($this->getPlayers()));
+        $numFlamingos = round($this->getPlugin()->getConfig()->getNested(ConfigKeys::FLAMINGO_PROPORTION) * count($this->getPlayers()));
         $numTeams = $this->getTeamManager()->getOrganization()->getNumTeams();
         $flamingosPerTeam = $numTeams / $numFlamingos;
         $teams = $this->getTeamManager()->getTeams();
@@ -259,7 +259,25 @@ final class Game implements Listener
      */
     public function revealFlamingos(): void
     {
+        $this->doToAllPlayers(function (Player $player): void {
+            $message = $player->isFlamingo() ? LangKeys::PLAYER_IS_FLAMINGO : LangKeys::PLAYER_ISNT_FLAMINGO;
+            $player->getPmPlayer()->addTitle('', Utils::getInstance()->formatMessage($message), 6, 8*20, 9);
+        });
 
+        // Send flamingo count 10 seconds later
+        $this->getPlugin()->getScheduler()->scheduleDelayedTask(
+            new ClosureTask(function (int $currentTick): void {
+                $flamingoCount = count($this->getFlamingos());
+                $this->doToAllPlayers(function (Player $player) use ($flamingoCount): void {
+                    $message = Utils::getInstance()->formatMessage(
+                        LangKeys::FLAMINGO_COUNT,
+                        ['count' => $flamingoCount]
+                    );
+                    $player->getPmPlayer()->addTitle('', $message, 6, 6*20, 9);
+                });
+            }),
+            10*20
+        );
     }
 
 
@@ -314,7 +332,7 @@ final class Game implements Listener
         }
 
         if ($dead->getTeam()->isEliminated()) {
-            $this->plugin->getServer()->broadcastMessage(
+            $this->getPlugin()->getServer()->broadcastMessage(
                 Utils::getInstance()->formatMessage(LangKeys::TEAM_ELIMINATED, ['team' => $dead->getTeam()->getName()]),
                 $this->getLevel()->getPlayers()
             );

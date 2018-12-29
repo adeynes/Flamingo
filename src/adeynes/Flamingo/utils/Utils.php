@@ -165,7 +165,7 @@ final class Utils
      * @param string[] $data
      * @return string
      */
-    public function formatMessage(string $path, array $data): ?string
+    public function formatMessage(string $path, array $data = []): ?string
     {
         /** @var String $message */
         $message = $this->plugin->getLang()->getNested($path);
