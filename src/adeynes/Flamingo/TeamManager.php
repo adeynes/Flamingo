@@ -3,20 +3,20 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo;
 
-use adeynes\Flamingo\struct\TeamOrganization;
+use adeynes\Flamingo\struct\TeamConfig;
 use adeynes\Flamingo\utils\ConfigKeys;
 use adeynes\Flamingo\utils\Utils;
 
 /**
  * A class to manage the teams
  *
- * This was extracted from the Game class as there are many heavy methods (ex. the team organization algorithm).
+ * This was extracted from the Game class as there are many heavy methods (ex. the team config picker).
  */
 class TeamManager
 {
 
     /** @var string */
-    public const ERROR_DIDNT_PICK_TEAM_ORG = 'No team organization has been picked. Are there team sizes defined config#team-size-optimality?';
+    public const ERROR_DIDNT_PICK_TEAM_CONFIG = 'No team config has been picked. Are there team sizes defined config#team-size-optimality?';
 
     /**
      * The default optimality values that will be used if none are specified in the config
@@ -28,8 +28,8 @@ class TeamManager
     /** @var Game */
     private $game;
 
-    /** @var TeamOrganization */
-    private $organization;
+    /** @var TeamConfig */
+    private $teamConfig;
 
     /** @var Team[] */
     private $teams;
@@ -40,11 +40,11 @@ class TeamManager
     }
 
     /**
-     * @return TeamOrganization
+     * @return TeamConfig
      */
-    public function getOrganization(): TeamOrganization
+    public function getTeamConfig(): TeamConfig
     {
-        return $this->organization;
+        return $this->teamConfig;
     }
 
     /**
@@ -67,26 +67,26 @@ class TeamManager
     /**
      * Generates teams based on an optimized (yet randomized) algorithm
      *
-     * @see TeamManager::findTeamOrganization()
+     * @see TeamManager::pickTeamConfig()
      * @see TeamManager::nextTeamName()
      *
      * @internal
      */
     public function generateTeams(): void
     {
-        $this->organization = $org = $this->findTeamOrganization();
+        $this->teamConfig = $config = $this->pickTeamConfig();
         // Keep a reference so we don't have to type $this->game->getPlayers() every time
         $players = &$this->game->getPlayers();
         // This is a copy, not a reference
         $playersNotDistributed = $players;
 
         $this->teams = Utils::initArrayWithClosure(
-            function (int $i) use ($org, &$playersNotDistributed) {
+            function (int $i) use ($config, &$playersNotDistributed) {
                 /** @var Player[] $randPlayers */
-                $randPlayers = Utils::getRandomElems($this->game->getPlayers(), $org->getTeamSize(), $playersNotDistributed);
+                $randPlayers = Utils::getRandomElems($this->game->getPlayers(), $config->getTeamSize(), $playersNotDistributed);
                 return new Team($this->nextTeamName(), $randPlayers);
             },
-            $org->getNumTeams()
+            $config->getNumTeams()
         );
 
         // Get rid of assoc keys (player's name), we want them numerically indexed
@@ -108,9 +108,9 @@ class TeamManager
      * { 1 - 0.2(1 - 1/NUM_TEAMS_WITH_NUMERICAL_SUP)    otherwise
      * NUM_TEAMS_WITH_NUMERICAL_SUP is the number of teams with a numerical superiority. The less, the better.
      *
-     * @return TeamOrganization
+     * @return TeamConfig
      */
-    private function findTeamOrganization(): TeamOrganization
+    private function pickTeamConfig(): TeamConfig
     {
         $scores = [];
         $sizes = $this->game->getPlugin()->getConfig()->get(ConfigKeys::TEAM_SIZE_OPTIMALITY, null);
@@ -122,12 +122,12 @@ class TeamManager
         }
 
         foreach ($sizes as $size => $optimality) {
-            $organization = TeamOrganization::calculate($size, count($this->game->getPlayers()));
-            $numTeamsWithNumericalSup = $organization->getNumTeamsWithNumericalSup();
+            $config = TeamConfig::calculate($size, count($this->game->getPlayers()));
+            $numTeamsWithNumericalSup = $config->getNumTeamsWithNumericalSup();
             // No teams with num. sup. is an 8% bonus, otherwise normalize to 0.8-1
             $numericalSupScore = ($numTeamsWithNumericalSup === 0 ? 1.08 : (1 - 0.2 * (1 - 1/$numTeamsWithNumericalSup)));
             $score = $optimality * $numericalSupScore;
-            $scores[serialize($organization)] = $score;
+            $scores[serialize($config)] = $score;
         }
 
         $total = array_sum($scores);
@@ -139,18 +139,18 @@ class TeamManager
         // Construct a structure where each numTeam occupies a certain amount of the probability space
         $probSpace = [];
         $i = 1;
-        foreach ($probabilities as $organization => $probability) {
-            $probSpace[$organization] = array_sum(array_slice($probabilities, 0, $i));
+        foreach ($probabilities as $config => $probability) {
+            $probSpace[$config] = array_sum(array_slice($probabilities, 0, $i));
             ++$i;
         }
 
         // Normalize to 0-1
         $random = rand() / getrandmax();
-        foreach ($probSpace as $organization => $start) {
-            if ($random <= $start) return unserialize($organization);
+        foreach ($probSpace as $config => $start) {
+            if ($random <= $start) return unserialize($config);
         }
 
-        throw new \InvalidStateException(self::ERROR_DIDNT_PICK_TEAM_ORG);
+        throw new \InvalidStateException(self::ERROR_DIDNT_PICK_TEAM_CONFIG);
     }
 
     /**

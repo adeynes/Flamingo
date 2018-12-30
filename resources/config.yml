@@ -1,5 +1,5 @@
 # DO NOT EDIT THE FOLLOWING LINE
-version: '0.3'
+version: '0.4'
 
 
 database:
@@ -32,9 +32,36 @@ flamingo:
   proportion: 0.26315789474 # 1/3.5
 
 map:
-  # The length of the side of the map, ex. if side is 1500, the map will span from -750/-750 to 750/750
-  side: 1800
-  # The minimum distance separating two teams
+  border:
+    # The 'radius' of the side of the map, ex. if radius is 750, the map will span from -750/-750 to 750/750
+    # The border is a square, even though this is called 'radius'
+    radius: 900
+    reduction:
+      # How many blocks will be substracted from the radius every game tick (1 game tick = 1 second) starting at the given minute
+      speeds:
+        # Starting at minute 100 (start of border reduction), the border will radius will reduce by 0.25/s
+        # After 20 minutes, the radius will be at 600
+        100: 0.25
+        # 0.4/s starting at minute 120, radius will be at 120 by minute 140
+        120: 0.4
+        # Radius will reach 50 after 90 seconds (minute 141.5)
+        140: 0.77777777778
+      # At which radius does the border stop reducing?
+      stops-at: 50
+
+    # Should players be pushed away from the border? (You can set this to false if you only want them to take damage)
+    push-away: false
+    # This is unnecessary if players are pushed away from the border
+    deal-damage:
+      # After how many minutes do players start taking damage if they cross the border?
+      # Set to false it damage should never be dealt
+      start: 110
+      # How much damage (in half-hearts) will be dealt per second?
+      damage: 3
+      # How many blocks past the border will full damage be dealt? (if below this value, reduced damage will be dealt)
+      leniency: 6
+
+  # The minimum distance separating two teams' spawnpoints
   # Will be overridden if the plugin cannot find a spot to spawn a team (after as many iterations as the minimum distance)
-  # 1800 side with 250 minimum distance can fit at least 32 teams 99% of the time
+  # 900 border radius with 250 minimum distance can fit at least 32 teams 99.15% of the time
   minimum-spawn-distance: 250

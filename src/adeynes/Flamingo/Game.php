@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo;
 
+use adeynes\Flamingo\border\Border;
 use adeynes\Flamingo\event\FlamingoRevelationEvent;
 use adeynes\Flamingo\event\GameStartEvent;
 use adeynes\Flamingo\utils\ConfigKeys;
@@ -15,7 +16,6 @@ use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerDeathEvent;
 use pocketmine\level\Level;
 use pocketmine\math\Vector2;
-use pocketmine\math\Vector3;
 use pocketmine\Player as PMPlayer;
 use pocketmine\scheduler\ClosureTask;
 
@@ -41,11 +41,21 @@ final class Game implements Listener
     /** @var bool */
     private $isStarted = false;
 
+    /**
+     * The number of seconds since the start of the game
+     *
+     * @var ?int Null if the game hasn't started yet
+     */
+    private $curTick = null;
+
     /** @var TeamManager */
     private $teamManager;
 
     /** @var Level */
     private $level;
+
+    /** @var Border */
+    private $border;
 
     /** @var Player[] */
     private $players = [];
@@ -78,6 +88,14 @@ final class Game implements Listener
     }
 
     /**
+     * @return int
+     */
+    public function getCurTick(): ?int
+    {
+        return $this->curTick;
+    }
+
+    /**
      * @return TeamManager
      */
     public function getTeamManager(): TeamManager
@@ -91,6 +109,14 @@ final class Game implements Listener
     public function getLevel(): Level
     {
         return $this->level;
+    }
+
+    /**
+     * @return Border
+     */
+    public function getBorder(): Border
+    {
+        return $this->border;
     }
 
     /**
@@ -139,6 +165,8 @@ final class Game implements Listener
         if ($this->isStarted()) {
             throw new \InvalidStateException(self::ERROR_GAME_IS_ALREADY_STARTED);
         }
+
+        $this->border = new Border($this);
 
         $this->getTeamManager()->generateTeams();
 
@@ -205,17 +233,38 @@ final class Game implements Listener
                 if (rand(0, 1)) {
                     $randZ *= -1;
                 }
-                $x = $spawn->getFloorX() + $randX;
-                // Vector2->getY() is our z value
-                $z = $spawn->getFloorY() + $randZ;
+                $spawn = $spawn->add($randX, $randZ);
                 // They spawn 30 blocks up
-                $y = $this->getLevel()->getHighestBlockAt($x, $z) + 30;
-                $player->getPmPlayer()->teleport(new Vector3($x, $y, $z));
+                $y = $this->getLevel()->getHighestBlockAt($spawn->getFloorX(), $spawn->getFloorY()) + 30;
+                $player->getPmPlayer()->teleport(Utils::vec2ToVec3($spawn, $y));
             }
         }
 
+        // Start ticking
+        $this->getPlugin()->getScheduler()->scheduleRepeatingTask(
+            new ClosureTask(function (int $currentTick): void {
+                $this->doTick();
+            }),
+            1 * 20
+        );
+
         $this->isStarted = true;
         (new GameStartEvent($this))->call();
+    }
+
+    /*
+     * Ticks the game (ran every second)
+     */
+    private function doTick(): void
+    {
+        // Increment tick count
+        if ($this->getCurTick() === null) {
+            $this->curTick = 0;
+        } else {
+            ++$this->curTick;
+        }
+
+        $this->getBorder()->doTick($this->getCurTick());
     }
 
     /**
@@ -238,7 +287,7 @@ final class Game implements Listener
         };
 
         $numFlamingos = round($this->getPlugin()->getConfig()->getNested(ConfigKeys::FLAMINGO_PROPORTION) * count($this->getPlayers()));
-        $numTeams = $this->getTeamManager()->getOrganization()->getNumTeams();
+        $numTeams = $this->getTeamManager()->getTeamConfig()->getNumTeams();
         $flamingosPerTeam = $numTeams / $numFlamingos;
         $teams = $this->getTeamManager()->getTeams();
         for ($i = 1; $i <= $flamingosPerTeam; ++$i) {
@@ -289,7 +338,7 @@ final class Game implements Listener
     public function eliminatePlayer(string $name): void
     {
         $player = $this->getPlayer($name);
-        if ($player === null) {
+        if (!$player instanceof Player || !$player->isPlaying()) {
             throw new \InvalidStateException(
                 Utils::replaceTags(self::ERROR_PLAYER_IS_NOT_PLAYING, ['player' => $name])
             );
@@ -313,7 +362,7 @@ final class Game implements Listener
         $dead = $this->getPlayer($event->getPlayer()->getName());
         $dead->eliminate();
         $pmPlayer = $dead->getPmPlayer();
-        if ($this->getPlayer($dead->getName()) === null || $dead->isEliminated()) {
+        if (!$this->getPlayer($dead->getName()) instanceof Player || !$dead->isPlaying()) {
             return;
         }
 

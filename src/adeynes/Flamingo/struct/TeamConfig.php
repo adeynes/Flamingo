@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo\struct;
 
-class TeamOrganization
+class TeamConfig
 {
 
     /** @var int */
@@ -27,15 +27,15 @@ class TeamOrganization
     }
 
     /**
-     * Generates a TeamOrganization instance based on a given size and number of players
+     * Generates a TeamConfig instance based on a given size and number of players
      *
      * @param int $size
      * @param int $numPlayers
-     * @return TeamOrganization
+     * @return TeamConfig
      */
-    public static function calculate(int $size, int $numPlayers): TeamOrganization
+    public static function calculate(int $size, int $numPlayers): TeamConfig
     {
-        return new TeamOrganization($size, intdiv($numPlayers, $size), $numPlayers % $size);
+        return new TeamConfig($size, intdiv($numPlayers, $size), $numPlayers % $size);
     }
 
     /**
