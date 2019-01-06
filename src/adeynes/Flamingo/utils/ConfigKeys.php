@@ -13,7 +13,7 @@ interface ConfigKeys
     public const DATABASE = 'database';
 
     /** @var string */
-    public const TEAM_SIZE_OPTIMALITY = 'team-size-optimality';
+    public const TEAM_SIZE_OPTIMALITY = 'team.size-optimality';
 
     /** @var string */
     public const FLAMINGO_REVELATION_DELAY = 'flamingo.revelation-delay';
@@ -47,6 +47,9 @@ interface ConfigKeys
     public const BORDER_VIOLATION_DAMAGE_LENIENCY = 'map.border.deal-damage.leniency';
 
     /** @var string */
-    public const MINIMUM_SPAWN_DISTANCE = 'map.minimum-spawn-distance';
+    public const TEAMS_MINIMUM_SPAWN_DISTANCE = 'map.minimum-spawn-distance.teams';
+
+    /** @var string */
+    public const SOLO_MINIMUM_SPAWN_DISTANCE = 'map.minimum-spawn-distance.solo';
 
 }

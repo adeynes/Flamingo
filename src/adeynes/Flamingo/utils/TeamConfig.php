@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace adeynes\Flamingo\struct;
+namespace adeynes\Flamingo\utils;
 
 class TeamConfig
 {

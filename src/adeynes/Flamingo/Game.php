@@ -3,19 +3,20 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo;
 
-use adeynes\Flamingo\border\Border;
-use adeynes\Flamingo\event\FlamingoRevelationEvent;
+use adeynes\Flamingo\component\Component;
+use adeynes\Flamingo\component\team\TeamsComponent;
+use adeynes\Flamingo\component\TickableComponent;
+use adeynes\Flamingo\event\GamePreStartEvent;
 use adeynes\Flamingo\event\GameStartEvent;
-use adeynes\Flamingo\utils\ConfigKeys;
+use adeynes\Flamingo\event\PlayerAdditionEvent;
+use adeynes\Flamingo\event\PlayerEliminationEvent;
+use adeynes\Flamingo\map\Map;
 use adeynes\Flamingo\utils\LangKeys;
 use adeynes\Flamingo\utils\Utils;
-use pocketmine\entity\Effect;
-use pocketmine\entity\EffectInstance;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerDeathEvent;
 use pocketmine\level\Level;
-use pocketmine\math\Vector2;
 use pocketmine\Player as PMPlayer;
 use pocketmine\scheduler\ClosureTask;
 
@@ -23,17 +24,14 @@ final class Game implements Listener
 {
 
     /** @var string */
-    public const ERROR_GAME_IS_ALREADY_STARTED = 'Attempted to start a game that was already started';
+    public const ERROR_GAME_IS_ALREADY_STARTED = 'Attempted to start a game that is already started';
+
+    public const NOTICE_GAME_START_CANCELLED = 'Game starting has been cancelled';
 
     /** @var string */
-    public const ERROR_PLAYER_IS_NOT_PLAYING = 'Attempted to eliminate a dead or non-existing player %player%';
+    public const ERROR_ELIMINATE_NON_PLAYING_PLAYER = 'Attempted to eliminate a non-playing player';
 
-    /**
-     * The factor by which the minimum spawn distance will be multiplied if a team cannot be fitted
-     *
-     * @var float
-     */
-    private const SPAWN_DISTANCE_DEPRECATION_FACTOR = 0.825;
+
 
     /** @var Flamingo */
     private $plugin;
@@ -42,32 +40,36 @@ final class Game implements Listener
     private $isStarted = false;
 
     /**
-     * The number of seconds since the start of the game
+     * The number of seconds since the start of the game (1 Flamingo tick = 20 PM ticks)
      *
      * @var ?int Null if the game hasn't started yet
      */
     private $curTick = null;
 
-    /** @var TeamManager */
-    private $teamManager;
-
-    /** @var Level */
-    private $level;
-
-    /** @var Border */
-    private $border;
-
     /** @var Player[] */
     private $players = [];
 
-    /** @var Player[] */
-    private $flamingos;
+    /** @var Map */
+    private $map;
 
+    /** @var TeamsComponent */
+    private $teamsComponent;
+
+    /** @var Component[] */
+    private $components;
+
+    /** @var TickableComponent[] */
+    private $tickableComponents;
+
+
+    /**
+     * @param Flamingo $plugin
+     * @param Level $level
+     */
     public function __construct(Flamingo $plugin, Level $level)
     {
         $this->plugin = $plugin;
-        $this->teamManager = new TeamManager($this);
-        $this->level = $level;
+        $this->map = new Map($this, $level);
         $this->getPlugin()->getServer()->getPluginManager()->registerEvents($this, $this->getPlugin());
     }
 
@@ -96,30 +98,6 @@ final class Game implements Listener
     }
 
     /**
-     * @return TeamManager
-     */
-    public function getTeamManager(): TeamManager
-    {
-        return $this->teamManager;
-    }
-
-    /**
-     * @return Level
-     */
-    public function getLevel(): Level
-    {
-        return $this->level;
-    }
-
-    /**
-     * @return Border
-     */
-    public function getBorder(): Border
-    {
-        return $this->border;
-    }
-
-    /**
      * @return Player[]
      */
     public function getPlayers(): array
@@ -138,27 +116,59 @@ final class Game implements Listener
 
     /**
      * @param Player ...$players
+     *
+     * @throws \ReflectionException
      */
     public function addPlayers(Player ...$players): void
     {
         foreach ($players as $player) {
-            $this->players[$player->getName()] = $player;
-            $player->getPmPlayer()->teleport($this->getLevel()->getSafeSpawn());
+            $event = new PlayerAdditionEvent($player, $this);
+            $event->call();
+            if (!$event->isCancelled()) {
+                $this->players[$player->getName()] = $player;
+            }
         }
     }
 
     /**
-     * @return Player[]
+     * @return Map
      */
-    public function getFlamingos(): array
+    public function getMap(): Map
     {
-        return $this->flamingos;
+        return $this->map;
     }
 
     /**
-     * Starts the game
+     * @param TeamsComponent $teamsComponent
+     */
+    public function setTeamsComponent(TeamsComponent $teamsComponent): void
+    {
+        $this->teamsComponent = $teamsComponent;
+    }
+
+    /**
+     * @param Component $component
+     */
+    public function addComponent(Component $component): void
+    {
+        $this->components[spl_object_hash($component)] = $component;
+    }
+
+    /**
+     * This also adds the component normally, no need to call addComponent() separately
      *
-     * This generates teams, flamingos, and teleports the teams to a randomized spawnpoint of the map.
+     * @param TickableComponent $component
+     */
+    public function addTickableComponent(TickableComponent $component): void
+    {
+        $this->tickableComponents[spl_object_hash($component)] = $component;
+        $this->addComponent($component);
+    }
+
+
+
+    /**
+     * Does all necessary pre-start things & starts the game
      */
     public function start(): void
     {
@@ -166,78 +176,10 @@ final class Game implements Listener
             throw new \InvalidStateException(self::ERROR_GAME_IS_ALREADY_STARTED);
         }
 
-        $this->border = new Border($this);
-
-        $this->getTeamManager()->generateTeams();
-
-        // Set the player's nametags (they will have their team in it)
-        $this->doToAllPlayers(function (Player $player): void {
-            $player->getPmPlayer()->setNameTag($player->getNameTag());
-        });
-
-        // Flamingos are picked at the start of the game, but revealed later (config#flamingo.revelation-delay)
-        $this->pickFlamingos();
-        $this->getPlugin()->getScheduler()->scheduleDelayedTask(
-            new ClosureTask(function (int $currentTick): void {
-                $this->revealFlamingos();
-                (new FlamingoRevelationEvent($this))->call();
-            }),
-            $this->getPlugin()->getConfig()->getNested(ConfigKeys::FLAMINGO_REVELATION_DELAY) * 60 * 20
-        );
-
-        // 99% of the time, at least 32 teams can be fit with the 1800/250 defaults
-        $side = $this->getPlugin()->getConfig()->getNested(ConfigKeys::MAP_SIDE) ?? 1800;
-        $limits = [-$side/2, $side/2];
-        /** @var int $minDistance */
-        $minDistance = $this->getPlugin()->getConfig()->getNested(ConfigKeys::MINIMUM_SPAWN_DISTANCE) ?? 250;
-        /** @var Vector2[] $spawns */
-        $spawns = [];
-
-        $respectsMinDistance = function (Vector2 $vector) use ($minDistance, $spawns): bool {
-            foreach ($spawns as $spawn) {
-                if ($vector->distance($spawn) < $minDistance) {
-                    return false;
-                }
-            }
-            return true;
-        };
-
-        foreach ($this->getTeamManager()->getTeams() as $team) {
-            for ($i = 0; $i < $minDistance; ++$i) {
-                $spawn = new Vector2(rand(...$limits), rand(...$limits));
-                if ($respectsMinDistance($spawn)) {
-                    $spawns[$team->getName()] = $spawn;
-                    continue 2; // go to the next team, don't skip to the minDistance deprecation
-                }
-            }
-            // We haven't been able to fit the team in minDistance tries, deprecate it
-            $minDistance *= self::SPAWN_DISTANCE_DEPRECATION_FACTOR;
-        }
-
-        // (Should) cancel out all damage
-        $resistance = new EffectInstance(Effect::getEffect(Effect::RESISTANCE), 30*20, 4);
-        // Regen 1 health every other tick
-        $regen = new EffectInstance(Effect::getEffect(Effect::REGENERATION), 30*20, 4);
-        // Give all players resistance & regen for 30 seconds to negate the fall damage
-        $this->doToAllPlayers(function (Player $player) use ($resistance, $regen): void {
-            $player->getPmPlayer()->addEffect($resistance);
-            $player->getPmPlayer()->addEffect($regen);
-        });
-
-        foreach ($spawns as $teamName => $spawn) {
-            foreach ($this->getTeamManager()->getTeam($teamName)->getPlayers() as $player) {
-                // Spawn at a random position 15 blocks away from the spawn
-                $randX = rand(-15, 15);
-                $randZ = sqrt(15**2 - $randX**2);
-                // Randomize randZ sign (else it would always be positive)
-                if (rand(0, 1)) {
-                    $randZ *= -1;
-                }
-                $spawn = $spawn->add($randX, $randZ);
-                // They spawn 30 blocks up
-                $y = $this->getLevel()->getHighestBlockAt($spawn->getFloorX(), $spawn->getFloorY()) + 30;
-                $player->getPmPlayer()->teleport(Utils::vec2ToVec3($spawn, $y));
-            }
+        $event = new GamePreStartEvent($this);
+        if ($event->isCancelled()) {
+            $this->getPlugin()->getServer()->getLogger()->notice(self::NOTICE_GAME_START_CANCELLED);
+            return;
         }
 
         // Start ticking
@@ -245,12 +187,14 @@ final class Game implements Listener
             new ClosureTask(function (int $currentTick): void {
                 $this->doTick();
             }),
-            1 * 20
+            1*20
         );
 
         $this->isStarted = true;
         (new GameStartEvent($this))->call();
     }
+
+
 
     /*
      * Ticks the game (ran every second)
@@ -263,89 +207,35 @@ final class Game implements Listener
         } else {
             ++$this->curTick;
         }
+        $curTick = $this->getCurTick();
 
-        $this->getBorder()->doTick($this->getCurTick());
-    }
+        $this->getMap()->doTick($curTick);
 
-    /**
-     * Picks the flamingos
-     *
-     * Flamingos are picked at the beginning of the game, but revealed after a specified amount of time
-     * (defined in config#flamingo.delay)
-     */
-    private function pickFlamingos(): void
-    {
-        $makeRandPlayerFlamingo = function (Team $team): void {
-            do {
-                /** @var Player $randPlayer */
-                $randPlayer = Utils::getRandomElem($team->getPlayers());
-                if (!$isFlamingo = $randPlayer->isFlamingo()) {
-                    $randPlayer->setFlamingo(true);
-                    $this->flamingos[$randPlayer->getName()] = $randPlayer;
-                }
-            } while ($isFlamingo);
-        };
-
-        $numFlamingos = round($this->getPlugin()->getConfig()->getNested(ConfigKeys::FLAMINGO_PROPORTION) * count($this->getPlayers()));
-        $numTeams = $this->getTeamManager()->getTeamConfig()->getNumTeams();
-        $flamingosPerTeam = $numTeams / $numFlamingos;
-        $teams = $this->getTeamManager()->getTeams();
-        for ($i = 1; $i <= $flamingosPerTeam; ++$i) {
-            foreach ($teams as $team) {
-                $makeRandPlayerFlamingo($team);
-            }
-        }
-        $numLeftoverFlamingos = $numTeams % $numFlamingos;
-        /** @var Team[] $receivingTeams */
-        $receivingTeams = Utils::getRandomElems($teams, $numLeftoverFlamingos);
-        foreach ($receivingTeams as $team) {
-            $makeRandPlayerFlamingo($team);
+        foreach ($this->tickableComponents as $tickableComponent) {
+            $tickableComponent->doTick($curTick);
         }
     }
-
-    /**
-     * Reveals to those concerned if they are a flamingo
-     */
-    public function revealFlamingos(): void
-    {
-        $this->doToAllPlayers(function (Player $player): void {
-            $message = $player->isFlamingo() ? LangKeys::PLAYER_IS_FLAMINGO : LangKeys::PLAYER_ISNT_FLAMINGO;
-            $player->getPmPlayer()->addTitle('', Utils::getInstance()->formatMessage($message), 6, 8*20, 9);
-        });
-
-        // Send flamingo count 10 seconds later
-        $this->getPlugin()->getScheduler()->scheduleDelayedTask(
-            new ClosureTask(function (int $currentTick): void {
-                $flamingoCount = count($this->getFlamingos());
-                $this->doToAllPlayers(function (Player $player) use ($flamingoCount): void {
-                    $message = Utils::getInstance()->formatMessage(
-                        LangKeys::FLAMINGO_COUNT,
-                        ['count' => $flamingoCount]
-                    );
-                    $player->getPmPlayer()->addTitle('', $message, 6, 6*20, 9);
-                });
-            }),
-            10*20
-        );
-    }
-
 
 
     /**
      * @param string $name
+     *
      * @throws \InvalidStateException If the player is dead or non-existing
+     * @throws \ReflectionException
      */
     public function eliminatePlayer(string $name): void
     {
         $player = $this->getPlayer($name);
         if (!$player instanceof Player || !$player->isPlaying()) {
             throw new \InvalidStateException(
-                Utils::replaceTags(self::ERROR_PLAYER_IS_NOT_PLAYING, ['player' => $name])
+                Utils::replaceTags(self::ERROR_ELIMINATE_NON_PLAYING_PLAYER, ['player' => $name])
             );
         }
 
         $player->eliminate();
         unset($this->players[$name]);
+
+        (new PlayerEliminationEvent($player, $this))->call();
     }
 
 
@@ -355,39 +245,15 @@ final class Game implements Listener
 
     /**
      * @param PlayerDeathEvent $event
+     *
      * @priority HIGHEST
      */
     public function onDeath(PlayerDeathEvent $event): void
     {
         $dead = $this->getPlayer($event->getPlayer()->getName());
-        $dead->eliminate();
-        $pmPlayer = $dead->getPmPlayer();
-        if (!$this->getPlayer($dead->getName()) instanceof Player || !$dead->isPlaying()) {
-            return;
+        if ($dead instanceof Player && $dead->isPlaying()) {
+            $dead->eliminate();
         }
-
-        $cause = $pmPlayer->getLastDamageCause();
-        $deathMessageContainer = PlayerDeathEvent::deriveMessage($pmPlayer->getName(), $cause);
-        $deathMessageContainer->setParameter(0, $dead->getNameTag());
-
-        if ($cause instanceof EntityDamageByEntityEvent) {
-            $killer = $cause->getDamager();
-            if ($killer instanceof PMPlayer) {
-                if ($this->getPlayer($killer->getName()) instanceof Player) {
-                    $killer = $this->getPlayer($killer->getName());
-                    $deathMessageContainer->setParameter(1, $killer->getNameTag());
-                }
-            }
-        }
-
-        if ($dead->getTeam()->isEliminated()) {
-            $this->getPlugin()->getServer()->broadcastMessage(
-                Utils::getInstance()->formatMessage(LangKeys::TEAM_ELIMINATED, ['team' => $dead->getTeam()->getName()]),
-                $this->getLevel()->getPlayers()
-            );
-        }
-
-        $event->setDeathMessage($deathMessageContainer);
     }
 
 
@@ -396,7 +262,7 @@ final class Game implements Listener
 
 
     /**
-     * Passed each player to a specified closure
+     * Passes each player to a specified closure
      *
      * @param \Closure $closure
      */

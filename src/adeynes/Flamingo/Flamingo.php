@@ -25,16 +25,18 @@ final class Flamingo extends PluginBase
     private const ERROR_GAME_IS_ALREADY_CREATED = 'Attempted to create game even though one already exists';
 
     /** @var string */
-    private const CONFIG_VERSION = '0.4';
+    private const CONFIG_VERSION = '0.5';
 
     /** @var string */
-    private const LANG_VERSION = '0.3';
+    private const LANG_VERSION = '0.4';
 
     /** @var string */
     private const LANG_FILE = 'lang.yml';
 
     /** @var string */
     private const MYSQL_FILE = 'mysql.sql';
+
+
 
     /** @var Flamingo */
     private static $instance;
@@ -45,8 +47,10 @@ final class Flamingo extends PluginBase
     /** @var DataConnector */
     private $connector;
 
-    /** @var ?Game */
+    /** @var Game|null */
     private $game = null;
+
+
 
     /**
      * @return Flamingo
@@ -123,6 +127,8 @@ final class Flamingo extends PluginBase
     {
         return $this->connector;
     }
+
+
 
     /**
      * @param Level $level

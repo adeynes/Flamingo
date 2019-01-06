@@ -3,11 +3,13 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo;
 
-use adeynes\Flamingo\utils\LangKeys;
-use adeynes\Flamingo\utils\Utils;
+use adeynes\Flamingo\component\team\Team;
+use adeynes\Flamingo\map\Teleportable;
+use pocketmine\level\Position;
+use pocketmine\math\Vector3;
 use pocketmine\Player as PMPlayer;
 
-class Player
+class Player implements Teleportable
 {
 
     /**
@@ -27,14 +29,11 @@ class Player
     /** @var string */
     private $name;
 
-    /** @var Team */
-    private $team;
-
-    /** @var bool */
-    private $isFlamingo = false;
-
     /** @var int */
     private $status = self::PLAYING;
+
+    /** @var Team */
+    private $team;
 
     /** @var PMPlayer */
     private $pmPlayer;
@@ -68,24 +67,6 @@ class Player
     public function getTeam(): Team
     {
         return $this->team;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isFlamingo(): bool
-    {
-        return $this->isFlamingo;
-    }
-
-    /**
-     * Sets the flamingo flag (where the player is a flamingo)
-     *
-     * @param bool $v
-     */
-    public function setFlamingo(bool $v = true): void
-    {
-        $this->isFlamingo = $v;
     }
 
     /**
@@ -137,19 +118,6 @@ class Player
     }
 
     /**
-     * Gets & formats the player's nametag as per the lang file's template
-     *
-     * @return string
-     */
-    public function getNameTag(): string
-    {
-        return Utils::getInstance()->formatMessage(
-            LangKeys::PLAYER_NAMETAG,
-            ['player' => $this->getName(), 'team' => $this->getTeam()->getName()]
-        );
-    }
-
-    /**
      * Eliminates the player
      *
      * This sets their status to ELIMINATED and changes their gamemode to spectator
@@ -158,6 +126,16 @@ class Player
     {
         $this->setStatus(self::ELIMINATED);
         $this->pmPlayer->setGamemode(PMPlayer::SPECTATOR);
+    }
+
+
+
+    /**
+     * @param Position $position
+     */
+    public function teleport(Position $position): void
+    {
+        $this->getPmPlayer()->teleport($position);
     }
 
 }

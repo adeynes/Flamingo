@@ -1,5 +1,5 @@
 # DO NOT EDIT THE FOLLOWING LINE
-version: '0.3'
+version: '0.4'
 
 
 error:
@@ -8,16 +8,12 @@ error:
 
 
 # What will be displayed in messages mentioning the player, ex. death message
-# %player% %team%
-player-nametag: '&b%player%&7@&e%team%'
+# %player% %team-color%
+# %team-color% is the color code for the player's team's color. lang#team.default-color if this is a solo game
+player-nametag: '%team-color%%player%'
 
-# %team%
-team-eliminated: '&cTeam &e%team% &chas been eliminated!'
-
-revelation:
-  # One of the next two messages will be sent as a subtitle to the player, depending on whether they are a flamingo
-  player-is-flamingo: '&bYou are a flamingo!'
-  player-isnt-flamingo: '&aYou are not a flamingo'
-  # This will be sent to all players 10 seconds after the flamingo announce
-  # %count%
-  flamingo-count: '&eThere are &b%count% &ceflamingos'
+team:
+  # The default color used for teams (usually if the game is a solo game and there are no teams)
+  default-color: '&7'
+  # %team%
+  elimination: '&cTeam &e%team% &chas been eliminated!'

@@ -1,18 +1,19 @@
 <?php
 declare(strict_types=1);
 
-namespace adeynes\Flamingo\border;
+namespace adeynes\Flamingo\map;
 
 use adeynes\Flamingo\Game;
 use adeynes\Flamingo\Player;
 use adeynes\Flamingo\utils\ConfigKeys;
 use adeynes\Flamingo\utils\Utils;
-use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerMoveEvent;
 use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
 
-class Border implements Listener
+// TODO: remove dependency on Game object, a border should be able to be used cross-game
+// Hint: players can't be in multiple games at once
+class BorderImpl implements Border
 {
 
     /**
@@ -48,7 +49,6 @@ class Border implements Listener
     {
         $this->game = $game;
         $this->leniency = $this->game->getPlugin()->getConfig()->getNested(ConfigKeys::BORDER_VIOLATION_DAMAGE_LENIENCY);
-        $this->game->getPlugin()->getServer()->getPluginManager()->registerEvents($this, $this->game->getPlugin());
     }
 
     /**
@@ -162,6 +162,13 @@ class Border implements Listener
 
 
 
+    /**
+     * Listens to PlayerMoveEvent to detect border collision/penetration
+     *
+     * @param PlayerMoveEvent $event
+     *
+     * @priority LOW
+     */
     public function onMove(PlayerMoveEvent $event): void
     {
         $player = $this->game->getPlayer($event->getPlayer()->getName());

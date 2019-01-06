@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace adeynes\Flamingo\utils;
 
 use adeynes\Flamingo\Flamingo;
+use pocketmine\entity\Effect;
+use pocketmine\entity\EffectInstance;
 use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
 use pocketmine\utils\TextFormat;
@@ -197,6 +199,22 @@ final class Utils
         // { x = r * cos(a)
         // { y = r * sin(a)
         return new Vector2($distToBorder * cos($angle), $distToBorder * sin($angle));
+    }
+
+
+
+    ////////////    POCKETMINE    ////////////
+
+    /**
+     * Returns a resistance 4 EffectInstance (invincible)
+     *
+     * @param float|int $duration Default is 600 ticks (30 seconds)
+     * @return EffectInstance
+     */
+    public static function getInvincibilityResistance($duration = 30*20): EffectInstance
+    {
+        // TODO: check amp 4 is enough
+        return new EffectInstance(Effect::getEffect(Effect::RESISTANCE), 30*20, 4);
     }
 
 

@@ -1,18 +1,25 @@
 <?php
 declare(strict_types=1);
 
-namespace adeynes\Flamingo;
+namespace adeynes\Flamingo\component\team;
 
-use adeynes\Flamingo\struct\TeamConfig;
+use adeynes\Flamingo\component\Component;
+use adeynes\Flamingo\event\GamePreStartEvent;
+use adeynes\Flamingo\event\GameStartEvent;
+use adeynes\Flamingo\event\PlayerEliminationEvent;
+use adeynes\Flamingo\Game;
+use adeynes\Flamingo\Player;
 use adeynes\Flamingo\utils\ConfigKeys;
+use adeynes\Flamingo\utils\TeamConfig;
 use adeynes\Flamingo\utils\Utils;
+use pocketmine\entity\Effect;
+use pocketmine\entity\EffectInstance;
+use pocketmine\event\Listener;
+use pocketmine\level\Level;
+use pocketmine\level\Position;
+use pocketmine\math\Vector2;
 
-/**
- * A class to manage the teams
- *
- * This was extracted from the Game class as there are many heavy methods (ex. the team config picker).
- */
-class TeamManager
+final class MultiTeamsComponent extends TeamsComponent
 {
 
     /** @var string */
@@ -23,58 +30,29 @@ class TeamManager
      *
      * @var float[]
      */
-    public const DEFAULT_TEAM_SIZE_OPTIMALITY = [2 => 0.8, 3 => 0.96, 4 => 0.88, 5 => 0.45, 6 => 0.2];
+    private const DEFAULT_TEAM_SIZE_OPTIMALITY = [2 => 0.8, 3 => 0.96, 4 => 0.88, 5 => 0.45, 6 => 0.2];
 
-    /** @var Game */
-    private $game;
+    /** @var int */
+    private const DEFAULT_MINIMUM_SPAWN_DISTANCE = 250;
 
-    /** @var TeamConfig */
-    private $teamConfig;
 
-    /** @var Team[] */
-    private $teams;
 
-    public function __construct(Game $game)
-    {
-        $this->game = $game;
-    }
-
-    /**
-     * @return TeamConfig
-     */
-    public function getTeamConfig(): TeamConfig
+    public function getTeamConfig(): ?TeamConfig
     {
         return $this->teamConfig;
     }
 
-    /**
-     * @return Team[]
-     */
-    public function getTeams(): array
-    {
-        return $this->teams;
-    }
 
-    /**
-     * @param string $name
-     * @return Team|null
-     */
-    public function getTeam(string $name): ?Team
-    {
-        return $this->getTeams()[$name] ?? null;
-    }
 
     /**
      * Generates teams based on an optimized (yet randomized) algorithm
      *
      * @see TeamManager::pickTeamConfig()
      * @see TeamManager::nextTeamName()
-     *
-     * @internal
      */
-    public function generateTeams(): void
+    private function generateTeams(): void
     {
-        $this->teamConfig = $config = $this->pickTeamConfig();
+        $this->teamConfig = $config = $this->teamConfig ?? $this->pickTeamConfig();
         // Keep a reference so we don't have to type $this->game->getPlayers() every time
         $players = &$this->game->getPlayers();
         // This is a copy, not a reference
@@ -84,7 +62,7 @@ class TeamManager
             function (int $i) use ($config, &$playersNotDistributed) {
                 /** @var Player[] $randPlayers */
                 $randPlayers = Utils::getRandomElems($this->game->getPlayers(), $config->getTeamSize(), $playersNotDistributed);
-                return new Team($this->nextTeamName(), $randPlayers);
+                return new Team($this->nextTeamName(), 0, $randPlayers);
             },
             $config->getNumTeams()
         );
@@ -117,7 +95,7 @@ class TeamManager
         if (is_null($sizes)) {
             $sizes = self::DEFAULT_TEAM_SIZE_OPTIMALITY;
             $logger = $this->game->getPlugin()->getServer()->getLogger();
-            $logger->warning(self::ERROR_DIDNT_PICK_TEAM_ORG);
+            $logger->warning(self::ERROR_DIDNT_PICK_TEAM_CONFIG);
             $logger->notice('Defaulting to ' . var_export($sizes, true));
         }
 
@@ -153,6 +131,8 @@ class TeamManager
         throw new \InvalidStateException(self::ERROR_DIDNT_PICK_TEAM_CONFIG);
     }
 
+
+
     /**
      * Generates the next team's name
      *
@@ -163,6 +143,55 @@ class TeamManager
     private function nextTeamName(): string
     {
         return (string)rand();
+    }
+
+
+
+
+
+
+    /**
+     * @param GamePreStartEvent $event
+     */
+    public function onGamePreStart(GamePreStartEvent $event): void
+    {
+        if ($event->getGame() !== $this->game) {
+            return;
+        }
+
+        // TODO: ability to plugin into the team generator (TeamGenerator interface?) (or just closure)
+        $this->generateTeams();
+
+        $minDistance = $this->game->getPlugin()->getConfig()->getNested(ConfigKeys::TEAMS_MINIMUM_SPAWN_DISTANCE)
+                       ?? self::DEFAULT_MINIMUM_SPAWN_DISTANCE;
+        $spawns = $this->game->getMap()->generateSpawns(count($this->getTeams()), $minDistance);
+
+        $count = 0;
+        foreach ($this->getTeams() as $team) {
+            // Apply 30 seconds of regen 4 to cancel the fall damage
+            $team->doToAllPlayers(function (Player $player): void {
+                $player->getPmPlayer()->addEffect(Utils::getInvincibilityResistance());
+            });
+
+            $team->teleport($spawns[$count]);
+            ++$count;
+        }
+    }
+
+    /**
+     * @param PlayerEliminationEvent $event
+     */
+    public function onPlayerElimination(PlayerEliminationEvent $event): void
+    {
+        // TODO: keep a list of teams indexed by player?
+        foreach ($this->getTeams() as $team) {
+            if ($team->getPlayer($event->getPlayer()->getName()) === null) {
+                continue;
+            }
+            if ($team->isEliminated()) {
+                // TODO: elimination message
+            }
+        }
     }
 
 }

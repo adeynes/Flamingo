@@ -6,13 +6,10 @@ namespace adeynes\Flamingo\event;
 use adeynes\Flamingo\Game;
 use pocketmine\event\Event;
 
-/**
- * Triggered when a game is started
- */
 class GameStartEvent extends Event
 {
 
-    /** @var Game[] */
+    /** @var Game */
     private $game;
 
     /**

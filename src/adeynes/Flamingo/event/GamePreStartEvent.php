@@ -4,15 +4,13 @@ declare(strict_types=1);
 namespace adeynes\Flamingo\event;
 
 use adeynes\Flamingo\Game;
+use pocketmine\event\Cancellable;
 use pocketmine\event\Event;
 
-/**
- * Triggered when flamingos are revealed
- */
-class FlamingoRevelationEvent extends Event
+class GamePreStartEvent extends Event implements Cancellable
 {
 
-    /** @var Game[] */
+    /** @var Game */
     private $game;
 
     /**
