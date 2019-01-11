@@ -28,13 +28,10 @@ final class Flamingo extends PluginBase
     private const CONFIG_VERSION = '0.5';
 
     /** @var string */
-    private const LANG_VERSION = '0.4';
+    private const LANG_VERSION = '0.5';
 
     /** @var string */
     private const LANG_FILE = 'lang.yml';
-
-    /** @var string */
-    private const MYSQL_FILE = 'mysql.sql';
 
 
 
@@ -43,9 +40,6 @@ final class Flamingo extends PluginBase
 
     /** @var Config */
     private $lang;
-
-    /** @var DataConnector */
-    private $connector;
 
     /** @var Game|null */
     private $game = null;
@@ -93,20 +87,9 @@ final class Flamingo extends PluginBase
         }
 
         Utils::new($this);
-
-        $this->connector = libasynql::create(
-            $this,
-            $this->getConfig()->get(ConfigKeys::DATABASE),
-            ['mysql' => self::MYSQL_FILE]
-        );
     }
 
-    public function onDisable(): void
-    {
-        if ($this->connector) {
-            $this->getConnector()->close();
-        }
-    }
+
 
     /**
      * @return Config
@@ -114,18 +97,6 @@ final class Flamingo extends PluginBase
     public function getLang(): Config
     {
         return $this->lang;
-    }
-
-    /**
-     * The libasynql data connector
-     *
-     * @return DataConnector
-     *
-     * @internal
-     */
-    public function getConnector(): DataConnector
-    {
-        return $this->connector;
     }
 
 
