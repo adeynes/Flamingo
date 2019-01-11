@@ -12,6 +12,7 @@ use adeynes\Flamingo\event\GameStartEvent;
 use adeynes\Flamingo\event\PlayerAdditionEvent;
 use adeynes\Flamingo\event\PlayerEliminationEvent;
 use adeynes\Flamingo\map\Map;
+use adeynes\Flamingo\utils\GameConfig;
 use adeynes\Flamingo\utils\LangKeys;
 use adeynes\Flamingo\utils\Utils;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
@@ -36,6 +37,9 @@ final class Game implements Listener
 
     /** @var Flamingo */
     private $plugin;
+
+    /** @var GameConfig */
+    private $gameConfig;
 
     /** @var bool */
     private $isStarted = false;
@@ -65,12 +69,13 @@ final class Game implements Listener
 
     /**
      * @param Flamingo $plugin
-     * @param Level $level
+     * @param GameConfig $gameConfig
      */
-    public function __construct(Flamingo $plugin, Level $level)
+    public function __construct(Flamingo $plugin, GameConfig $gameConfig)
     {
         $this->plugin = $plugin;
-        $this->map = new Map($this, $level);
+        $this->gameConfig = $gameConfig;
+        $this->map = new Map($this, $gameConfig->getLevel());
         $this->getPlugin()->getServer()->getPluginManager()->registerEvents($this, $this->getPlugin());
     }
 
@@ -80,6 +85,14 @@ final class Game implements Listener
     public function getPlugin(): Flamingo
     {
         return $this->plugin;
+    }
+
+    /**
+     * @return GameConfig
+     */
+    public function getGameConfig(): GameConfig
+    {
+        return $this->gameConfig;
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace adeynes\Flamingo;
 
 use adeynes\Flamingo\utils\ConfigKeys;
+use adeynes\Flamingo\utils\GameConfig;
 use adeynes\Flamingo\utils\LangKeys;
 use adeynes\Flamingo\utils\Utils;
 use pocketmine\level\Level;
@@ -104,16 +105,26 @@ final class Flamingo extends PluginBase
 
 
     /**
-     * @param Level $level
+     * @param GameConfig $gameConfig
      * @return Game
+     *
      * @throws \InvalidStateException If there is already a game created
      */
-    public function newGame(Level $level): Game
+    public function newGame(GameConfig $gameConfig): Game
     {
         if ($this->game instanceof Game) {
             throw new \InvalidStateException(self::ERROR_GAME_IS_ALREADY_CREATED);
         }
-        return $this->game = new Game($this, $level);
+
+        if ($gameConfig->getLevel() === null) {
+            do {
+                $name = (string)rand();
+            } while (!$this->getServer()->generateLevel($name));
+
+            $gameConfig->setLevel($this->getServer()->getLevelByName($name));
+        }
+
+        return $this->game = new Game($this, $gameConfig);
     }
 
     /**
