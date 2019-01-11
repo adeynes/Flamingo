@@ -74,6 +74,8 @@ final class MultiTeamsComponent extends TeamsComponent
             /** @var Team $team */
             $team->addPlayers($remainingPlayers[$i]);
         });
+
+        $this->playingTeams = $this->teams;
     }
 
     /**
@@ -189,8 +191,14 @@ final class MultiTeamsComponent extends TeamsComponent
                 continue;
             }
             if ($team->isEliminated()) {
+                unset($this->playingTeams[$team->getName()]);
                 // TODO: elimination message
             }
+        }
+
+        $winner = $this->checkWinCondition();
+        if ($winner instanceof Team) {
+            $this->game->onWin($winner);
         }
     }
 

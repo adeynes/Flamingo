@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace adeynes\Flamingo;
 
 use adeynes\Flamingo\component\Component;
+use adeynes\Flamingo\component\team\Team;
 use adeynes\Flamingo\component\team\TeamsComponent;
 use adeynes\Flamingo\component\TickableComponent;
 use adeynes\Flamingo\event\GamePreStartEvent;
@@ -194,6 +195,11 @@ final class Game implements Listener
         (new GameStartEvent($this))->call();
     }
 
+    private function stop(): void
+    {
+
+    }
+
 
 
     /*
@@ -217,6 +223,7 @@ final class Game implements Listener
     }
 
 
+
     /**
      * @param string $name
      *
@@ -236,6 +243,26 @@ final class Game implements Listener
         unset($this->players[$name]);
 
         (new PlayerEliminationEvent($player, $this))->call();
+    }
+
+    /**
+     * Called when a team has won the game
+     *
+     * @param Team $winnerTeam The team that has won
+     */
+    public function onWin(Team $winnerTeam): void
+    {
+        $this->plugin->getServer()->broadcastMessage(
+            Utils::getInstance()->formatMessage(LangKeys::WIN_MESSAGE, ['team' => $winnerTeam->getName()]),
+            array_map(
+                function (Player $player): PMPlayer {
+                    return $player->getPmPlayer();
+                },
+                $this->getPlayers()
+            )
+        );
+
+        $this->stop();
     }
 
 

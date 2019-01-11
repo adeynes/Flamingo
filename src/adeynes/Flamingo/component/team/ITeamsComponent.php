@@ -32,6 +32,14 @@ interface ITeamsComponent extends Component, Listener
 
 
     /**
+     * Checks if a team has won. null if nobody has won, the Team object that has won otherwise
+     *
+     * @return Team|null
+     */
+    public function checkWinCondition(): ?Team;
+
+
+    /**
      * All teams components have to do something on game pre start (ex. spawn the teams)
      *
      * @param GamePreStartEvent $event

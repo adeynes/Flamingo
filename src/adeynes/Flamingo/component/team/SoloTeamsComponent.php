@@ -6,6 +6,7 @@ namespace adeynes\Flamingo\component\team;
 use adeynes\Flamingo\event\GamePreStartEvent;
 use adeynes\Flamingo\event\GameStartEvent;
 use adeynes\Flamingo\event\PlayerAdditionEvent;
+use adeynes\Flamingo\event\PlayerEliminationEvent;
 use adeynes\Flamingo\Game;
 use adeynes\Flamingo\utils\ConfigKeys;
 use adeynes\Flamingo\utils\LangKeys;
@@ -40,6 +41,11 @@ final class SoloTeamsComponent extends TeamsComponent
         }
     }
 
+
+
+
+
+
     /**
      * @param GamePreStartEvent $event
      */
@@ -60,6 +66,19 @@ final class SoloTeamsComponent extends TeamsComponent
             $team->getPlayer()->getPmPlayer()->addEffect(Utils::getInvincibilityResistance());
             $team->getPlayer()->teleport($spawns[$count]);
             ++$count;
+        }
+    }
+
+    /**
+     * @param PlayerEliminationEvent $event
+     */
+    public function onPlayerElimination(PlayerEliminationEvent $event): void
+    {
+        unset($this->playingTeams[$event->getPlayer()->getName()]);
+
+        $winner = $this->checkWinCondition();
+        if ($winner instanceof Team) {
+            $this->game->onWin($winner);
         }
     }
 

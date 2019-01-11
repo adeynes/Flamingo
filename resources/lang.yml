@@ -12,6 +12,10 @@ error:
 # %team-color% is the color code for the player's team's color. lang#team.default-color if this is a solo game
 player-nametag: '%team-color%%player%'
 
+# Displayed when a team (or player if the game is solo) wins the game
+# %team%
+win-message: '%team% &ahas won the game!'
+
 team:
   # The default color used for teams (usually if the game is a solo game and there are no teams)
   default-color: '&7'

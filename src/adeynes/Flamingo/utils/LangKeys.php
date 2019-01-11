@@ -19,6 +19,9 @@ interface LangKeys
     public const PLAYER_NAMETAG = 'player-nametag';
 
     /** @var string */
+    public const WIN_MESSAGE = 'win-message';
+
+    /** @var string */
     public const TEAM_DEFAULT_COLOR = 'team.default-color';
 
     /** @var string */
