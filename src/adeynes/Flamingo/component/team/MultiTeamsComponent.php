@@ -202,7 +202,7 @@ final class MultiTeamsComponent extends TeamsComponent
         // TODO: keep a list of teams indexed by player?
         foreach ($this->getTeams() as $team) {
             if ($team->getPlayer($event->getPlayer()->getName()) === null) {
-               s continue;
+                continue;
             }
             if ($team->isEliminated()) {
                 unset($this->playingTeams[$team->getName()]);

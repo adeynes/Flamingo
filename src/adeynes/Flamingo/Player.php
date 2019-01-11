@@ -32,9 +32,6 @@ class Player implements Teleportable
     /** @var int */
     private $status = self::PLAYING;
 
-    /** @var Team */
-    private $team;
-
     /** @var PMPlayer */
     private $pmPlayer;
 
@@ -43,13 +40,11 @@ class Player implements Teleportable
      * For instance, the names do not have to match.
      *
      * @param string $name
-     * @param Team $team
      * @param PMPlayer $pmPlayer
      */
-    public function __construct(string $name, Team $team, PMPlayer $pmPlayer)
+    public function __construct(string $name, PMPlayer $pmPlayer)
     {
         $this->name = $name;
-        $this->team = $team;
         $this->pmPlayer = $pmPlayer;
     }
 
@@ -59,14 +54,6 @@ class Player implements Teleportable
     public function getName(): string
     {
         return $this->name;
-    }
-
-    /**
-     * @return Team
-     */
-    public function getTeam(): Team
-    {
-        return $this->team;
     }
 
     /**
