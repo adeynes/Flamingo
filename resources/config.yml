@@ -2,20 +2,6 @@
 version: '0.5'
 
 
-database:
-  types: mysql # only mysql is supported
-
-  mysql:
-    host: 127.0.0.1
-    username: flamingo
-    password: mypassword123
-    schema: flamingo # aka database
-
-  # The maximum number of simultaneous SQL queries
-  # Recommended: 1 for sqlite, 2 for MySQL. You may want to further increase this value if your MySQL connection is very slow.
-  worker-limit: 2
-
-
 team:
   # The optimality factor for each team size. This directly correlates with the probability of each one getting picked.
   # You can add or remove possible team sizes to your liking

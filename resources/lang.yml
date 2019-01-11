@@ -2,11 +2,6 @@
 version: '0.5'
 
 
-error:
-  incompatible-config-version: 'Incompatible config.yml version! Try deleting Flamingo/resources/config.yml and reboot the server.'
-  incompatible-lang-version: 'Incompatible lang.yml version! Try deleting Flamingo/resources/lang.yml and reboot the server.'
-
-
 # What will be displayed in messages mentioning the player, ex. death message
 # %player% %team-color%
 # %team-color% is the color code for the player's team's color. lang#team.default-color if this is a solo game

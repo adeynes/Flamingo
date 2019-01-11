@@ -16,10 +16,10 @@ final class Flamingo extends PluginBase
 {
 
     /** @var string */
-    private const ERROR_INCOMPATIBLE_CONFIG_VERSION_DEFAULT = 'Incompatible config.yml version! Try deleting Flamingo/resources/config.yml and reboot the server.';
+    private const ERROR_INCOMPATIBLE_CONFIG_VERSION = 'Incompatible config.yml version! Try deleting Flamingo/resources/config.yml and reboot the server.';
 
     /** @var string */
-    private const ERROR_INCOMPATIBLE_LANG_VERSION_DEFAULT = 'Incompatible lang.yml version! Try deleting Flamingo/resources/lang.yml and reboot the server.';
+    private const ERROR_INCOMPATIBLE_LANG_VERSION = 'Incompatible lang.yml version! Try deleting Flamingo/resources/lang.yml and reboot the server.';
 
     /** @var string */
     private const ERROR_GAME_IS_ALREADY_CREATED = 'Attempted to create game even though one already exists';
@@ -72,8 +72,9 @@ final class Flamingo extends PluginBase
         $config_version = $this->getConfig()->get(ConfigKeys::VERSION);
         if (!Utils::areVersionsCompatible($config_version, self::CONFIG_VERSION)) {
             /** @var string $error */
-            $error = $this->getLang()->get(LangKeys::ERROR_INCOMPATIBLE_CONFIG_VERSION, null)
-                     ?? self::ERROR_INCOMPATIBLE_CONFIG_VERSION_DEFAULT;
+            $error = self::ERROR_INCOMPATIBLE_CONFIG_VERSION . PHP_EOL .
+                'current: ' . $config_version . PHP_EOL .
+                'required: ' . self::CONFIG_VERSION;
             $this->fail($error);
         }
 
@@ -81,8 +82,9 @@ final class Flamingo extends PluginBase
         $lang_version = $this->getLang()->get(LangKeys::VERSION);
         if (!Utils::areVersionsCompatible($lang_version, self::LANG_VERSION)) {
             /** @var string $error */
-            $error = $this->getLang()->get(LangKeys::ERROR_INCOMPATIBLE_LANG_VERSION, null)
-                     ?? self::ERROR_INCOMPATIBLE_LANG_VERSION_DEFAULT;
+            $error = self::ERROR_INCOMPATIBLE_LANG_VERSION . PHP_EOL .
+                'current: ' . $lang_version . PHP_EOL .
+                'required: ' . self::LANG_VERSION;
             $this->fail($error);
         }
 
