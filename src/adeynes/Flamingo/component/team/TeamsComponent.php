@@ -13,9 +13,6 @@ abstract class TeamsComponent implements ITeamsComponent
     /** @var Game */
     protected $game;
 
-    /** @var TeamConfig|null */
-    protected $teamConfig;
-
     /** @var Team[] */
     protected $teams;
 
@@ -26,12 +23,10 @@ abstract class TeamsComponent implements ITeamsComponent
 
     /**
      * @param Game $game
-     * @param TeamConfig|null $teamConfig
      */
-    public function __construct(Game $game, ?TeamConfig $teamConfig)
+    public function __construct(Game $game)
     {
         $this->game = $game;
-        $this->teamConfig = $teamConfig;
         $game->getPlugin()->getServer()->getPluginManager()->registerEvents($this, $game->getPlugin());
     }
 

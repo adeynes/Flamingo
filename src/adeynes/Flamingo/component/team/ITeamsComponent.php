@@ -14,12 +14,6 @@ interface ITeamsComponent extends Component, Listener
 {
 
     /**
-     * @param Game $game
-     * @param TeamConfig|null $teamConfig
-     */
-    public function __construct(Game $game, ?TeamConfig $teamConfig);
-
-    /**
      * @return Team[]
      */
     public function getTeams(): array;

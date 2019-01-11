@@ -4,6 +4,9 @@ declare(strict_types=1);
 namespace adeynes\Flamingo;
 
 use adeynes\Flamingo\component\Component;
+use adeynes\Flamingo\component\team\ITeamsComponent;
+use adeynes\Flamingo\component\team\MultiTeamsComponent;
+use adeynes\Flamingo\component\team\SoloTeamsComponent;
 use adeynes\Flamingo\component\team\Team;
 use adeynes\Flamingo\component\team\TeamsComponent;
 use adeynes\Flamingo\component\TickableComponent;
@@ -57,7 +60,7 @@ final class Game implements Listener
     /** @var Map */
     private $map;
 
-    /** @var TeamsComponent */
+    /** @var ITeamsComponent */
     private $teamsComponent;
 
     /** @var Component[] */
@@ -76,6 +79,13 @@ final class Game implements Listener
         $this->plugin = $plugin;
         $this->gameConfig = $gameConfig;
         $this->map = new Map($this, $gameConfig->getLevel());
+
+        if ($gameConfig->hasTeams()) {
+            $this->teamsComponent = new MultiTeamsComponent($this, null);
+        } else {
+            $this->teamsComponent = new SoloTeamsComponent($this);
+        }
+
         $this->getPlugin()->getServer()->getPluginManager()->registerEvents($this, $this->getPlugin());
     }
 
@@ -152,10 +162,15 @@ final class Game implements Listener
         return $this->map;
     }
 
+    public function getTeamsComponent(): ITeamsComponent
+    {
+        return $this->teamsComponent;
+    }
+
     /**
-     * @param TeamsComponent $teamsComponent
+     * @param ITeamsComponent $teamsComponent
      */
-    public function setTeamsComponent(TeamsComponent $teamsComponent): void
+    public function setTeamsComponent(ITeamsComponent $teamsComponent): void
     {
         $this->teamsComponent = $teamsComponent;
     }

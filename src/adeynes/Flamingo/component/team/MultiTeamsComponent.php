@@ -35,6 +35,20 @@ final class MultiTeamsComponent extends TeamsComponent
     /** @var int */
     private const DEFAULT_MINIMUM_SPAWN_DISTANCE = 250;
 
+    /** @var TeamConfig|null */
+    private $teamConfig;
+
+
+    /**
+     * @param Game $game
+     * @param TeamConfig|null $teamConfig
+     */
+    public function __construct(Game $game, ?TeamConfig $teamConfig)
+    {
+        $this->teamConfig = $teamConfig;
+        parent::__construct($game);
+    }
+
 
 
     public function getTeamConfig(): ?TeamConfig
@@ -188,7 +202,7 @@ final class MultiTeamsComponent extends TeamsComponent
         // TODO: keep a list of teams indexed by player?
         foreach ($this->getTeams() as $team) {
             if ($team->getPlayer($event->getPlayer()->getName()) === null) {
-                continue;
+               s continue;
             }
             if ($team->isEliminated()) {
                 unset($this->playingTeams[$team->getName()]);
