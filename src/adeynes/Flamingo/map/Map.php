@@ -84,7 +84,7 @@ final class Map implements Tickable, Listener
     public function generateSpawns(int $needSpawnNum, float $minDistance): array
     {
         $radius = $this->getBorder()->getRadius();
-        $limits = [-$radius, $radius];
+        $limits = [(int)-$radius, (int)$radius];
 
         /** @var Position[] $spawns */
         $spawns = [];

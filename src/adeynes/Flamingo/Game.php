@@ -64,10 +64,10 @@ final class Game implements Listener
     private $teamsComponent;
 
     /** @var Component[] */
-    private $components;
+    private $components = [];
 
     /** @var TickableComponent[] */
-    private $tickableComponents;
+    private $tickableComponents = [];
 
 
     /**
@@ -206,6 +206,7 @@ final class Game implements Listener
         }
 
         $event = new GamePreStartEvent($this);
+        $event->call();
         if ($event->isCancelled()) {
             $this->getPlugin()->getServer()->getLogger()->notice(self::NOTICE_GAME_START_CANCELLED);
             return;

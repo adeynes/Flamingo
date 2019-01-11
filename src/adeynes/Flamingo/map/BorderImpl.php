@@ -48,7 +48,8 @@ class BorderImpl implements Border
     public function __construct(Game $game)
     {
         $this->game = $game;
-        $this->leniency = $this->game->getPlugin()->getConfig()->getNested(ConfigKeys::BORDER_VIOLATION_DAMAGE_LENIENCY);
+        $this->radius = $game->getPlugin()->getConfig()->getNested(ConfigKeys::BORDER_RADIUS);
+        $this->leniency = $game->getPlugin()->getConfig()->getNested(ConfigKeys::BORDER_VIOLATION_DAMAGE_LENIENCY);
     }
 
     /**
