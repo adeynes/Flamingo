@@ -36,15 +36,11 @@ class Player implements Teleportable
     private $pmPlayer;
 
     /**
-     * There is separation between this Player instance and the PocketMine Player instance.
-     * For instance, the names do not have to match.
-     *
-     * @param string $name
      * @param PMPlayer $pmPlayer
      */
-    public function __construct(string $name, PMPlayer $pmPlayer)
+    public function __construct(PMPlayer $pmPlayer)
     {
-        $this->name = $name;
+        $this->name = $pmPlayer->getName();
         $this->pmPlayer = $pmPlayer;
     }
 

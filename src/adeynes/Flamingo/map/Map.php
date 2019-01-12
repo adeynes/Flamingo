@@ -98,9 +98,13 @@ final class Map implements Tickable, Listener
             return true;
         };
 
+        var_dump($limits);
+        var_dump($needSpawnNum);
+        var_dump($minDistance);
+        // TODO: async
         for ($i = 0; $i < $needSpawnNum; ++$i) {
-            for ($i = 0; $i < $minDistance; ++$i) {
-                $spawn = new Position(rand(...$limits), rand(...$limits), self::SPAWN_HEIGHT, $this->getLevel());
+            for ($j = 0; $j < 20; ++$j) {
+                $spawn = new Position(rand(...$limits), self::SPAWN_HEIGHT, rand(...$limits), $this->getLevel());
                 if ($respectsMinDistance($spawn)) {
                     $spawns[] = $spawn;
                     continue 2; // go to the next team, don't skip to the minDistance deprecation
