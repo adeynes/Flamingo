@@ -15,13 +15,6 @@ final class Map implements Tickable, Listener
 {
 
     /**
-     * The y-value of generated spawns
-     *
-     * @var int
-     */
-    private const SPAWN_HEIGHT = 255;
-
-    /**
      * The factor by which the minimum spawn distance will be multiplied if a team cannot be fitted
      *
      * @var float
@@ -104,7 +97,9 @@ final class Map implements Tickable, Listener
         // TODO: async
         for ($i = 0; $i < $needSpawnNum; ++$i) {
             for ($j = 0; $j < 20; ++$j) {
-                $spawn = new Position(rand(...$limits), self::SPAWN_HEIGHT, rand(...$limits), $this->getLevel());
+                $x = rand(...$limits);
+                $z = rand(...$limits);
+                $spawn = new Position($x, $this->getLevel()->getHighestBlockAt($x, $z), $z, $this->getLevel());
                 if ($respectsMinDistance($spawn)) {
                     $spawns[] = $spawn;
                     continue 2; // go to the next team, don't skip to the minDistance deprecation
