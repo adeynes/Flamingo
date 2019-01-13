@@ -118,7 +118,6 @@ class Player implements Teleportable
      */
     public function teleport(Position $position): void
     {
-        var_dump($position->getLevel()->isChunkLoaded($position->getX() >> 4, $position->getZ() >> 4));
         $this->getPmPlayer()->teleport($position);
     }
 

@@ -80,7 +80,6 @@ class SpawnGeneratorImpl implements SpawnGenerator, ChunkLoader
 
         // TODO: async
         for ($i = 0; $i < $needSpawnNum; ++$i) {
-            var_dump($i);
             while (true) {
                 for ($j = 0; $j < 20; ++$j) {
                     $x = rand(...$limits);
@@ -110,8 +109,6 @@ class SpawnGeneratorImpl implements SpawnGenerator, ChunkLoader
                         $this->map->getLevel()->registerChunkLoader($this, $chunk->getX(), $chunk->getZ());
                     }
                     $this->spawnsQueue[$chunkHash][] = $spawn;
-                    var_dump($spawn);
-                    var_dump($chunkX . ',' . $chunkZ);
 
                     continue 3; // go to the next spawn
                 }
@@ -152,14 +149,12 @@ class SpawnGeneratorImpl implements SpawnGenerator, ChunkLoader
         $canBePopulated = true;
         foreach ($cantPopulateWith as $incompatibleChunkHash) {
             Level::getXZ($incompatibleChunkHash, $x, $z);
-            var_dump($x . ',' . $z);
             if (isset($this->spawnsQueue[$incompatibleChunkHash])) {
                 $canBePopulated = false;
                 $preventingChunks[$incompatibleChunkHash] = $incompatibleChunkHash;
             }
         }
 
-        var_dump($preventingChunks);
         return $canBePopulated;
     }
 
@@ -173,8 +168,6 @@ class SpawnGeneratorImpl implements SpawnGenerator, ChunkLoader
     public function onChunkPopulated(Chunk $chunk): void
     {
         $chunkHash = Level::chunkHash($chunk->getX(), $chunk->getZ());
-        var_dump($this->spawnsQueue);
-        var_dump($chunkHash);
         if (!isset($this->spawnsQueue[$chunkHash])) {
             return;
         }
@@ -187,7 +180,6 @@ class SpawnGeneratorImpl implements SpawnGenerator, ChunkLoader
 
         unset($this->spawnsQueue[$chunkHash]);
 
-        var_dump($this->populationNotScheduled);
         foreach ($this->populationNotScheduled as $populationNotScheduled => $preventingChunks) {
             if (isset($preventingChunks[$chunkHash])) {
                 unset($preventingChunks[$chunkHash]);
