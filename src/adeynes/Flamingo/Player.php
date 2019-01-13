@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace adeynes\Flamingo;
 
 use adeynes\Flamingo\component\team\Team;
+use adeynes\Flamingo\event\PlayerEliminationEvent;
 use adeynes\Flamingo\map\Teleportable;
 use pocketmine\level\Position;
 use pocketmine\math\Vector3;
@@ -12,36 +13,24 @@ use pocketmine\Player as PMPlayer;
 class Player implements Teleportable
 {
 
-    /**
-     * The player is still playing (ie. alive)
-     *
-     * @var int
-     */
-    public const PLAYING = 1;
-
-    /**
-     * The player has been eliminated (ie. died)
-     *
-     * @var int
-     */
-    public const ELIMINATED = 0;
-
     /** @var string */
     private $name;
-
-    /** @var int */
-    private $status = self::PLAYING;
 
     /** @var PMPlayer */
     private $pmPlayer;
 
+    /** @var Game The Game to which the Player belongs */
+    private $game;
+
     /**
      * @param PMPlayer $pmPlayer
+     * @param Game $game
      */
-    public function __construct(PMPlayer $pmPlayer)
+    public function __construct(PMPlayer $pmPlayer, Game $game)
     {
         $this->name = $pmPlayer->getName();
         $this->pmPlayer = $pmPlayer;
+        $this->game = $game;
     }
 
     /**
@@ -53,46 +42,6 @@ class Player implements Teleportable
     }
 
     /**
-     * Gets the player's status (PLAYING or ELIMINATED)
-     *
-     * @return int
-     */
-    public function getStatus(): int
-    {
-        return $this->status;
-    }
-
-    /**
-     * Is the player still playing (alive)?
-     *
-     * @return bool
-     */
-    public function isPlaying(): bool
-    {
-        return $this->getStatus() === self::PLAYING;
-    }
-
-    /**
-     * Has the player been eliminated (killed)?
-     *
-     * @return bool
-     */
-    public function isEliminated(): bool
-    {
-        return $this->getStatus() === self::ELIMINATED;
-    }
-
-    /**
-     * Sets the player's status to either PLAYING or ELIMINATED
-     *
-     * @param int $status
-     */
-    public function setStatus(int $status): void
-    {
-        $this->status = $status;
-    }
-
-    /**
      * @return PMPlayer
      */
     public function getPmPlayer(): PMPlayer
@@ -101,14 +50,22 @@ class Player implements Teleportable
     }
 
     /**
-     * Eliminates the player
-     *
-     * This sets their status to ELIMINATED and changes their gamemode to spectator
+     * @return bool
+     */
+    public function isPlaying(): bool
+    {
+        return $this->game->getPlayer($this->getName()) === $this;
+    }
+
+    /**
+     * Eliminates the player (switched to spec)
      */
     public function eliminate(): void
     {
-        $this->setStatus(self::ELIMINATED);
-        $this->pmPlayer->setGamemode(PMPlayer::SPECTATOR);
+        $this->game->addSpectator($this);
+        $this->getPmPlayer()->setGamemode(PMPlayer::SPECTATOR);
+
+        (new PlayerEliminationEvent($this, $this->game))->call();
     }
 
 

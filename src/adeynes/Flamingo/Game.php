@@ -31,6 +31,7 @@ final class Game implements Listener
     /** @var string */
     public const ERROR_GAME_IS_ALREADY_STARTED = 'Attempted to start a game that is already started';
 
+    /** @var string */
     public const NOTICE_GAME_START_CANCELLED = 'Game starting has been cancelled';
 
     /** @var string */
@@ -56,6 +57,9 @@ final class Game implements Listener
 
     /** @var Player[] */
     private $players = [];
+
+    /** @var Player[] */
+    private $spectators = [];
 
     /** @var Map */
     private $map;
@@ -139,19 +143,27 @@ final class Game implements Listener
     }
 
     /**
-     * @param Player ...$players
-     *
-     * @throws \ReflectionException
+     * @param Player $player
      */
-    public function addPlayers(Player ...$players): void
+    public function addPlayers(Player $player): void
     {
-        foreach ($players as $player) {
-            $event = new PlayerAdditionEvent($player, $this);
-            $event->call();
-            if (!$event->isCancelled()) {
-                $this->players[$player->getName()] = $player;
-            }
+        $event = new PlayerAdditionEvent($player, $this);
+        $event->call();
+        if (!$event->isCancelled()) {
+            $this->players[$player->getName()] = $player;
         }
+    }
+
+    /**
+     * @param Player $player
+     */
+    public function addSpectator(Player $player): void
+    {
+        $name = $player->getName();
+        if ($this->getPlayer($name) instanceof Player) {
+            unset($this->players[$name]);
+        }
+        $this->spectators[$name] = $player;
     }
 
     /**
@@ -256,27 +268,6 @@ final class Game implements Listener
 
 
     /**
-     * @param string $name
-     *
-     * @throws \InvalidStateException If the player is dead or non-existing
-     * @throws \ReflectionException
-     */
-    public function eliminatePlayer(string $name): void
-    {
-        $player = $this->getPlayer($name);
-        if (!$player instanceof Player || !$player->isPlaying()) {
-            throw new \InvalidStateException(
-                Utils::replaceTags(self::ERROR_ELIMINATE_NON_PLAYING_PLAYER, ['player' => $name])
-            );
-        }
-
-        $player->eliminate();
-        unset($this->players[$name]);
-
-        (new PlayerEliminationEvent($player, $this))->call();
-    }
-
-    /**
      * Called when a team has won the game
      *
      * @param Team $winnerTeam The team that has won
@@ -298,9 +289,6 @@ final class Game implements Listener
 
 
 
-
-
-
     /**
      * @param PlayerDeathEvent $event
      *
@@ -309,7 +297,7 @@ final class Game implements Listener
     public function onDeath(PlayerDeathEvent $event): void
     {
         $dead = $this->getPlayer($event->getPlayer()->getName());
-        if ($dead instanceof Player && $dead->isPlaying()) {
+        if ($dead instanceof Player) {
             $dead->eliminate();
         }
     }
