@@ -30,11 +30,14 @@ class SpawnGeneratorImpl implements SpawnGenerator, ChunkLoader
     /** @var Map */
     private $map;
 
-    /** @var Vector2[][] [chunk index => [vector2]] */
+    /** @var Vector2[][] [chunk hash => [vector2]] */
     private $spawnsQueue = [];
 
+    /** @var int[][] Chunks that have not had their population scheduled [chunk hash => [chunk hashes preventing population]] */
+    private $populationNotScheduled = [];
+
     /** @var Position[] */
-    private $generatedSpawns = [];
+    private $populatedSpawns = [];
 
     /** @var \Closure */
     private $onFinish;
@@ -77,6 +80,7 @@ class SpawnGeneratorImpl implements SpawnGenerator, ChunkLoader
 
         // TODO: async
         for ($i = 0; $i < $needSpawnNum; ++$i) {
+            var_dump($i);
             while (true) {
                 for ($j = 0; $j < 20; ++$j) {
                     $x = rand(...$limits);
@@ -90,21 +94,73 @@ class SpawnGeneratorImpl implements SpawnGenerator, ChunkLoader
                     $spawns[] = $spawn;
 
                     $chunk = $level->getChunkAtPosition(new Vector3($x, 0, $z), true);
-                    $level->populateChunk($chunk->getX(), $chunk->getZ());
-
+                    $chunkX = $chunk->getX();
+                    $chunkZ = $chunk->getZ();
                     $chunkHash = Level::chunkHash($chunk->getX(), $chunk->getZ());
+
                     if (!isset($this->spawnsQueue[$chunkHash])) {
+                        // We have to load & populate the chunks to know the highest block
+                        $this->populationNotScheduled[$chunkHash] = [];
+                        if ($this->canBePopulated($chunk, $this->populationNotScheduled[$chunkHash])) {
+                            $level->populateChunk($chunkX, $chunkZ);
+                            unset($this->populationNotScheduled[$chunkHash]);
+                        }
+
                         $this->spawnsQueue[$chunkHash] = [];
                         $this->map->getLevel()->registerChunkLoader($this, $chunk->getX(), $chunk->getZ());
                     }
                     $this->spawnsQueue[$chunkHash][] = $spawn;
+                    var_dump($spawn);
+                    var_dump($chunkX . ',' . $chunkZ);
 
-                    continue 3; // go to the next team, don't go to the minDistance deprecation
+                    continue 3; // go to the next spawn
                 }
+
                 // We haven't been able to fit the team in 20 tries, deprecate the min distance
                 $minDistance *= self::SPAWN_DISTANCE_DEPRECATION_FACTOR;
             }
         }
+    }
+
+
+
+    /**
+     * Checks if a given Chunk is ready to be populated (shared no adjacent Chunks with another Chunk being populated)
+     *
+     * Adjacent chunks get locked during population, so chunks that share
+     * an adjacent block can't be populated; we just have to keep trying
+     * (ex. (-2, 2) and (1, 0) can't both populate because they share (-1, 1) and (-1, 2))
+     *
+     * @param Chunk $chunk
+     * @param Chunk[] &$preventingChunks Will be filled with the Chunks preventing population
+     * @return bool
+     */
+    private function canBePopulated(Chunk $chunk, array &$preventingChunks = []): bool
+    {
+        /** @var int[] $cantPopulateWith Hashes of the chunks with which this chunk can't populate simultaneously */
+        $cantPopulateWith = [];
+        for ($dx = -2; $dx <= 2; ++$dx) {
+            for ($dz = -2; $dz <= 2; ++$dz) {
+                if ($dx === 0 && $dz === 0) { // this chunk
+                    continue;
+                }
+
+                $cantPopulateWith[] = Level::chunkHash($chunk->getX() + $dx, $chunk->getZ() + $dz);
+            }
+        }
+
+        $canBePopulated = true;
+        foreach ($cantPopulateWith as $incompatibleChunkHash) {
+            Level::getXZ($incompatibleChunkHash, $x, $z);
+            var_dump($x . ',' . $z);
+            if (isset($this->spawnsQueue[$incompatibleChunkHash])) {
+                $canBePopulated = false;
+                $preventingChunks[$incompatibleChunkHash] = $incompatibleChunkHash;
+            }
+        }
+
+        var_dump($preventingChunks);
+        return $canBePopulated;
     }
 
 
@@ -117,6 +173,8 @@ class SpawnGeneratorImpl implements SpawnGenerator, ChunkLoader
     public function onChunkPopulated(Chunk $chunk): void
     {
         $chunkHash = Level::chunkHash($chunk->getX(), $chunk->getZ());
+        var_dump($this->spawnsQueue);
+        var_dump($chunkHash);
         if (!isset($this->spawnsQueue[$chunkHash])) {
             return;
         }
@@ -124,15 +182,26 @@ class SpawnGeneratorImpl implements SpawnGenerator, ChunkLoader
         foreach ($this->spawnsQueue[$chunkHash] as $spawn) {
             // Bitwise AND with 0x0f to only keep the last 4 bites (coords within the Chunk)
             $y = $chunk->getHighestBlockAt($spawn->getX() & 0x0f, $spawn->getY() & 0x0f);
-            $this->generatedSpawns[] = new Position($spawn->getX(), $y, $spawn->getY(), $this->map->getLevel());
+            $this->populatedSpawns[] = new Position($spawn->getX(), $y, $spawn->getY(), $this->map->getLevel());
         }
 
         unset($this->spawnsQueue[$chunkHash]);
 
-        var_dump($this->spawnsQueue);
+        var_dump($this->populationNotScheduled);
+        foreach ($this->populationNotScheduled as $populationNotScheduled => $preventingChunks) {
+            if (isset($preventingChunks[$chunkHash])) {
+                unset($preventingChunks[$chunkHash]);
+            }
+
+            if (empty($preventingChunks)) {
+                Level::getXZ($populationNotScheduled, $x, $z);
+                $this->map->getLevel()->populateChunk($x, $z);
+                unset($this->populationNotScheduled[$populationNotScheduled]);
+            }
+        }
 
         if (empty($this->spawnsQueue)) {
-            ($this->onFinish)($this->generatedSpawns);
+            ($this->onFinish)($this->populatedSpawns);
         }
     }
 

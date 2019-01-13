@@ -176,10 +176,14 @@ class BorderImpl implements Border
         if (!$player instanceof Player || !$player->isPlaying()) {
             return;
         }
+        var_dump($player->getName());
+
+        var_dump($this->getRadius());
 
         $pmPlayer = $player->getPmPlayer();
         $playerVec2 = Utils::vec3ToVec2($pmPlayer);
         if ($this->isWithinLimits($playerVec2)) {
+            var_dump('within limits');
             return;
         }
 
