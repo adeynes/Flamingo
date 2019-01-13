@@ -150,10 +150,9 @@ class Team implements Teleportable
             if (rand(0, 1)) {
                 $randZ *= -1;
             }
-            $randPos = Position::fromObject($position->add($randX, 0, $randZ));
-            $y = $position->getLevel()->getHighestBlockAt($randPos->getFloorX(), $randPos->getFloorY());
-            $randPos->setComponents($randPos->getX(), $y, $randPos->getZ());
 
+            // TODO: they may go in unloaded or ungenerated chunks
+            $randPos = $position->getLevel()->getSafeSpawn(Position::fromObject($position->add($randX, 1, $randZ)));
             $player->teleport($randPos);
         });
     }

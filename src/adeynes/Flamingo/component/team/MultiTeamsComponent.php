@@ -180,18 +180,25 @@ final class MultiTeamsComponent extends TeamsComponent
 
         $minDistance = $this->game->getPlugin()->getConfig()->getNested(ConfigKeys::TEAMS_MINIMUM_SPAWN_DISTANCE)
                        ?? self::DEFAULT_MINIMUM_SPAWN_DISTANCE;
-        $spawns = $this->game->getMap()->generateSpawns(count($this->getTeams()), $minDistance);
 
-        $count = 0;
-        foreach ($this->getTeams() as $team) {
-            // Apply 30 seconds of regen 4 to cancel the fall damage
-            $team->doToAllPlayers(function (Player $player): void {
-                $player->getPmPlayer()->addEffect(Utils::getInvincibilityResistance());
-            });
+        $this->game->getMap()->getSpawnGenerator()->generateSpawns(
+            count($this->getTeams()),
+            $minDistance,
+            function (array $spawns): void {
+                /** @var Position[] $spawns */
 
-            $team->teleport($spawns[$count]);
-            ++$count;
-        }
+                $count = 0;
+                foreach ($this->getTeams() as $team) {
+                    // Apply 30 seconds of regen 4 to cancel the fall damage
+                    $team->doToAllPlayers(function (Player $player): void {
+                        $player->getPmPlayer()->addEffect(Utils::getInvincibilityResistance());
+                    });
+
+                    $team->teleport($spawns[$count]);
+                    ++$count;
+                }
+            }
+        );
     }
 
     /**

@@ -231,8 +231,10 @@ final class Game implements Listener
 
 
 
-    /*
+    /**
      * Ticks the game (ran every second)
+     *
+     * @internal
      */
     private function doTick(): void
     {

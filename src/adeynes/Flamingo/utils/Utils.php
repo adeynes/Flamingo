@@ -6,6 +6,8 @@ namespace adeynes\Flamingo\utils;
 use adeynes\Flamingo\Flamingo;
 use pocketmine\entity\Effect;
 use pocketmine\entity\EffectInstance;
+use pocketmine\level\format\Chunk;
+use pocketmine\level\Level;
 use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
 use pocketmine\utils\TextFormat;
@@ -213,7 +215,6 @@ final class Utils
      */
     public static function getInvincibilityResistance($duration = 30*20): EffectInstance
     {
-        // TODO: check amp 4 is enough
         return new EffectInstance(Effect::getEffect(Effect::RESISTANCE), 30*20, 4);
     }
 

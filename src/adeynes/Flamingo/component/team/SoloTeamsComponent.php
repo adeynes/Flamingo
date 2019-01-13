@@ -59,14 +59,21 @@ final class SoloTeamsComponent extends TeamsComponent
 
         $minDistance = $this->game->getPlugin()->getConfig()->getNested(ConfigKeys::SOLO_MINIMUM_SPAWN_DISTANCE)
             ?? self::DEFAULT_MINIMUM_SPAWN_DISTANCE;
-        $spawns = $this->game->getMap()->generateSpawns(count($this->getTeams()), $minDistance);
 
-        $count = 0;
-        foreach ($this->getTeams() as $team) {
-            $team->getPlayer()->getPmPlayer()->addEffect(Utils::getInvincibilityResistance());
-            $team->getPlayer()->teleport($spawns[$count]);
-            ++$count;
-        }
+        $this->game->getMap()->getSpawnGenerator()->generateSpawns(
+            count($this->getTeams()),
+            $minDistance,
+            function (array $spawns): void {
+                /** @var Position[] $spawns */
+
+                $count = 0;
+                foreach ($this->getTeams() as $team) {
+                    $team->getPlayer()->getPmPlayer()->addEffect(Utils::getInvincibilityResistance());
+                    $team->getPlayer()->teleport($spawns[$count]);
+                    ++$count;
+                }
+            }
+        );
     }
 
     /**
