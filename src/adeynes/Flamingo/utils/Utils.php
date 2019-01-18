@@ -143,7 +143,7 @@ final class Utils
      */
     public static function vec3ToVec2(Vector3 $vector3): Vector2
     {
-        return new Vector2($vector3->getX(), $vector3->getY());
+        return new Vector2($vector3->getX(), $vector3->getZ());
     }
 
     /**
