@@ -35,6 +35,9 @@ final class Game implements Listener
     public const NOTICE_GAME_START_CANCELLED = 'Game starting has been cancelled';
 
     /** @var string */
+    public const ERROR_ADD_NONEXISTENT_PLAYER = 'Attempted to add a nonexistent player';
+
+    /** @var string */
     public const ERROR_ELIMINATE_NON_PLAYING_PLAYER = 'Attempted to eliminate a non-playing player';
 
 
@@ -143,10 +146,16 @@ final class Game implements Listener
     }
 
     /**
-     * @param Player $player
+     * @param string $name
      */
-    public function addPlayers(Player $player): void
+    public function addPlayer(string $name): void
     {
+        $pmPlayer = $this->getPlugin()->getServer()->getPlayer($name);
+        if (!$pmPlayer instanceof PMPlayer || !$pmPlayer->isOnline()) {
+            throw new \InvalidArgumentException(self::ERROR_ADD_NONEXISTENT_PLAYER);
+        }
+
+        $player = new Player($pmPlayer, $this);
         $event = new PlayerAdditionEvent($player, $this);
         $event->call();
         if (!$event->isCancelled()) {
@@ -160,7 +169,7 @@ final class Game implements Listener
     public function addSpectator(Player $player): void
     {
         $name = $player->getName();
-        if ($this->getPlayer($name) instanceof Player) {
+        if ($player->isPlaying()) {
             unset($this->players[$name]);
         }
         $this->spectators[$name] = $player;
