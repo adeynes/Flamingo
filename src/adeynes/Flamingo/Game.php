@@ -147,8 +147,9 @@ final class Game implements Listener
 
     /**
      * @param string $name
+     * @return Player
      */
-    public function addPlayer(string $name): void
+    public function addPlayer(string $name): Player
     {
         $pmPlayer = $this->getPlugin()->getServer()->getPlayer($name);
         if (!$pmPlayer instanceof PMPlayer || !$pmPlayer->isOnline()) {
@@ -161,6 +162,8 @@ final class Game implements Listener
         if (!$event->isCancelled()) {
             $this->players[$player->getName()] = $player;
         }
+
+        return $player;
     }
 
     /**
@@ -301,12 +304,15 @@ final class Game implements Listener
     /**
      * @param PlayerDeathEvent $event
      *
-     * @priority HIGHEST
+     * @priority LOWEST
      */
     public function onDeath(PlayerDeathEvent $event): void
     {
         $dead = $this->getPlayer($event->getPlayer()->getName());
+        var_dump($event->getPlayer()->getName());
+        var_dump($this->getPlayers());
         if ($dead instanceof Player) {
+            var_dump($dead->getName());
             $dead->eliminate();
         }
     }
