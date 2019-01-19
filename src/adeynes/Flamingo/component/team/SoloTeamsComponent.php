@@ -39,6 +39,8 @@ final class SoloTeamsComponent extends TeamsComponent
                 )
             );
         }
+
+        $this->playingTeams = $this->teams;
     }
 
 

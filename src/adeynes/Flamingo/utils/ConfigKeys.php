@@ -44,9 +44,6 @@ interface ConfigKeys
     public const BORDER_VIOLATION_DAMAGE_VALUE = 'map.border.deal-damage.damage';
 
     /** @var string */
-    public const BORDER_VIOLATION_DAMAGE_LENIENCY = 'map.border.deal-damage.leniency';
-
-    /** @var string */
     public const TEAMS_MINIMUM_SPAWN_DISTANCE = 'map.minimum-spawn-distance.teams';
 
     /** @var string */

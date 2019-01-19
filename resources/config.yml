@@ -1,5 +1,5 @@
 # DO NOT EDIT THE FOLLOWING LINE
-version: '0.5'
+version: '0.6'
 
 
 team:
@@ -41,8 +41,6 @@ map:
       start: 110
       # How much damage (in half-hearts) will be dealt per second?
       damage: 3
-      # How many blocks past the border will full damage be dealt? (if below this value, reduced damage will be dealt)
-      leniency: 6
 
   # The minimum distance separating two spawnpoints
   # Will be overridden if the plugin cannot find a spot to spawn a team (after as many iterations as the minimum distance)

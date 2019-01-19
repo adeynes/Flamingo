@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo\map;
 
+use adeynes\Flamingo\event\GameStartEvent;
 use adeynes\Flamingo\Game;
 use adeynes\Flamingo\Player;
 use adeynes\Flamingo\utils\ConfigKeys;
@@ -23,6 +24,13 @@ class BorderImpl implements Border
      */
     public const KNOCKBACK_FACTOR = 2.8;
 
+    /**
+     * How far into the border can the player get before they get knockbacked? (Can't be 0 or they won't be knockbacked)
+     *
+     * @var float
+     */
+    public const LENIENCY = 3;
+
     /** @var Game */
     private $game;
 
@@ -36,20 +44,18 @@ class BorderImpl implements Border
      */
     private $radius;
 
+    private $isBorderEnforced = false;
+
     /** @var float */
     private $curReductionSpeed = 0;
 
     /** @var int */
     private $curDamage = 0;
 
-    /** @var int */
-    private $leniency;
-
     public function __construct(Game $game)
     {
         $this->game = $game;
         $this->radius = $game->getPlugin()->getConfig()->getNested(ConfigKeys::BORDER_RADIUS);
-        $this->leniency = $game->getPlugin()->getConfig()->getNested(ConfigKeys::BORDER_VIOLATION_DAMAGE_LENIENCY);
     }
 
     /**
@@ -58,6 +64,22 @@ class BorderImpl implements Border
     public function getRadius(): float
     {
         return $this->radius;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isBorderEnforced(): bool
+    {
+        return $this->isBorderEnforced;
+    }
+
+    /**
+     * @param bool $value
+     */
+    public function setBorderEnforced(bool $value = true): void
+    {
+        $this->isBorderEnforced = $value;
     }
 
     /**
@@ -74,18 +96,6 @@ class BorderImpl implements Border
     public function getCurDamage(): int
     {
         return $this->curDamage;
-    }
-
-    /**
-     * How many blocks past the borders will players take full damage?
-     *
-     * If the player is past the border but below this value, reduced damage will be dealt.
-     *
-     * @return int
-     */
-    public function getLeniency(): int
-    {
-        return $this->leniency;
     }
 
     /**
@@ -147,7 +157,7 @@ class BorderImpl implements Border
 
 
     /**
-     * Checks if the given vector is within the border's limits
+     * Checks if the given vector is within the border's limits. Doesn't take into account the LENIENCY
      *
      * @param Vector2 $vector
      * @return bool
@@ -164,6 +174,16 @@ class BorderImpl implements Border
 
 
     /**
+     * @param GameStartEvent $event
+     */
+    public function onGameStart(GameStartEvent $event): void
+    {
+        $this->setBorderEnforced(true);
+    }
+
+
+
+    /**
      * Listens to PlayerMoveEvent to detect border collision/penetration
      *
      * @param PlayerMoveEvent $event
@@ -172,32 +192,48 @@ class BorderImpl implements Border
      */
     public function onMove(PlayerMoveEvent $event): void
     {
+        if (!$this->isBorderEnforced()) {
+            return;
+        }
+
         $player = $this->game->getPlayer($event->getPlayer()->getName());
         if (!$player instanceof Player || !$player->isPlaying()) {
             return;
         }
-        var_dump($player->getName());
-
-        var_dump($this->getRadius());
 
         $pmPlayer = $player->getPmPlayer();
         $playerVec2 = Utils::vec3ToVec2($pmPlayer);
         if ($this->isWithinLimits($playerVec2)) {
-            var_dump('within limits');
             return;
         }
 
         // Through which vector did the player enter the border?
         $penetrationVector = Utils::calculateVectorSquareIntersection($playerVec2, $this->getRadius());
+        $distance = $playerVec2->distance($penetrationVector);
+
+        if ($distance < self::LENIENCY) {
+            return;
+        }
+
         // How far into the border the player is
         $diffVector = $playerVec2->subtract($penetrationVector);
 
-        // We're not using Living::knockBack() because that thing looks like a dinosaur
-        // TODO: fine-tune factors
-        // Go the opposite way that we went into the border & go up a bit
-        $knockBackMotion = (new Vector3(-$diffVector->getX(), 0.5, -$diffVector->getY()))->multiply(self::KNOCKBACK_FACTOR);
-        // Divide the current motion by 3 and add the knockback motion
+        // We're not using Living::knockBack() because we want more fine control
+        // This is pretty much a copy though
+        /** @see Living::knockBack() */
+        // TODO: fine-tune factors a bit more (though this is pretty much fine)
+        $base = 0.32;
+        $x = -$diffVector->getX();
+        $y = $base**2;
+        $z = -$diffVector->getY();
+        $f = 1/$distance;
+
+        $knockBackMotion = (new Vector3($x*$f*$base, $y, $z*$f*$base))
+                           ->multiply(self::KNOCKBACK_FACTOR);
+        var_dump($knockBackMotion);
         $pmPlayer->setMotion($pmPlayer->getMotion()->divide(3)->add($knockBackMotion));
+        var_dump($pmPlayer->getMotion());
+
 
         if ($damage = $this->getCurDamage()) {
             $pmPlayer->setHealth($pmPlayer->getHealth() - $damage);
