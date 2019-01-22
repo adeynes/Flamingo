@@ -70,7 +70,6 @@ final class SoloTeamsComponent extends TeamsComponent
 
                 $count = 0;
                 foreach ($this->getTeams() as $team) {
-                    $team->getPlayer()->getPmPlayer()->addEffect(Utils::getInvincibilityResistance());
                     $team->getPlayer()->teleport($spawns[$count]);
                     ++$count;
                 }

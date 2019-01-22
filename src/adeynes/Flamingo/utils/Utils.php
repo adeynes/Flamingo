@@ -205,21 +205,6 @@ final class Utils
 
 
 
-    ////////////    POCKETMINE    ////////////
-
-    /**
-     * Returns a resistance 4 EffectInstance (invincible)
-     *
-     * @param float|int $duration Default is 600 ticks (30 seconds)
-     * @return EffectInstance
-     */
-    public static function getInvincibilityResistance($duration = 30*20): EffectInstance
-    {
-        return new EffectInstance(Effect::getEffect(Effect::RESISTANCE), $duration, 4);
-    }
-
-
-
 
 
 

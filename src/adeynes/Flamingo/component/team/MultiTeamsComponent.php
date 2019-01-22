@@ -189,11 +189,6 @@ final class MultiTeamsComponent extends TeamsComponent
 
                 $count = 0;
                 foreach ($this->getTeams() as $team) {
-                    // Apply 30 seconds of regen 4 to cancel the fall damage
-                    $team->doToAllPlayers(function (Player $player): void {
-                        $player->getPmPlayer()->addEffect(Utils::getInvincibilityResistance());
-                    });
-
                     $team->teleport($spawns[$count]);
                     ++$count;
                 }
