@@ -3,8 +3,6 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo\map;
 
-use adeynes\Flamingo\utils\Utils;
-use pocketmine\block\Block;
 use pocketmine\level\ChunkLoader;
 use pocketmine\level\format\Chunk;
 use pocketmine\level\Level;
@@ -21,7 +19,6 @@ class SpawnGeneratorImpl implements SpawnGenerator, ChunkLoader
      * @var float
      */
     private const SPAWN_DISTANCE_DEPRECATION_FACTOR = 0.825;
-
 
 
     /** @var int */

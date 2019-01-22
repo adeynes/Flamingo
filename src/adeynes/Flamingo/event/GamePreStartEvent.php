@@ -13,6 +13,8 @@ class GamePreStartEvent extends Event implements Cancellable
     /** @var Game */
     private $game;
 
+
+
     /**
      * @param Game $game
      */

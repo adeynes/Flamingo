@@ -3,9 +3,6 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo\map;
 
-use pocketmine\level\ChunkLoader;
-use pocketmine\level\Position;
-
 interface SpawnGenerator
 {
 

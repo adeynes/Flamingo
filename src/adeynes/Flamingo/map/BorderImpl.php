@@ -14,7 +14,7 @@ use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
 
 // TODO: remove dependency on Game object, a border should be able to be used cross-game
-// Hint: players can't be in multiple games at once
+// Hint: Player::getGame()
 class BorderImpl implements Border
 {
 
@@ -31,6 +31,7 @@ class BorderImpl implements Border
      * @var float
      */
     public const LENIENCY = 3;
+
 
     /** @var Game */
     private $game;
@@ -56,6 +57,8 @@ class BorderImpl implements Border
 
     /** @var int */
     private $curDamage = 0;
+
+
 
     public function __construct(Game $game)
     {

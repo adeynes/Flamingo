@@ -13,9 +13,10 @@ class PlayerEliminationEvent extends Event
     /** @var Player */
     private $player;
 
-    /** @var Game
-     */
+    /** @var Game */
     private $game;
+
+
 
     public function __construct(Player $player, Game $game)
     {

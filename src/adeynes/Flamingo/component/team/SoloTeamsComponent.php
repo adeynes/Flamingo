@@ -4,16 +4,10 @@ declare(strict_types=1);
 namespace adeynes\Flamingo\component\team;
 
 use adeynes\Flamingo\event\GamePreStartEvent;
-use adeynes\Flamingo\event\GameStartEvent;
-use adeynes\Flamingo\event\PlayerAdditionEvent;
 use adeynes\Flamingo\event\PlayerEliminationEvent;
-use adeynes\Flamingo\Game;
 use adeynes\Flamingo\utils\ConfigKeys;
 use adeynes\Flamingo\utils\LangKeys;
-use adeynes\Flamingo\utils\TeamConfig;
 use adeynes\Flamingo\utils\Utils;
-use pocketmine\entity\Effect;
-use pocketmine\entity\EffectInstance;
 use pocketmine\level\Position;
 
 final class SoloTeamsComponent extends TeamsComponent
@@ -76,6 +70,8 @@ final class SoloTeamsComponent extends TeamsComponent
             }
         );
     }
+
+
 
     /**
      * @param PlayerEliminationEvent $event

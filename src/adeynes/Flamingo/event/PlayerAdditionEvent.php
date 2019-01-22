@@ -17,6 +17,8 @@ class PlayerAdditionEvent extends Event implements Cancellable
     /** @var Game */
     private $game;
 
+
+
     public function __construct(Player $player, Game $game)
     {
         $this->player = $player;

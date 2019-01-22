@@ -4,10 +4,6 @@ declare(strict_types=1);
 namespace adeynes\Flamingo\utils;
 
 use adeynes\Flamingo\Flamingo;
-use pocketmine\entity\Effect;
-use pocketmine\entity\EffectInstance;
-use pocketmine\level\format\Chunk;
-use pocketmine\level\Level;
 use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
 use pocketmine\utils\TextFormat;
@@ -214,6 +210,8 @@ final class Utils
     /** @var Flamingo */
     private $plugin;
 
+
+
     /**
      * This is a singleton, so private constructor
      *
@@ -242,6 +240,8 @@ final class Utils
     {
         return self::$instance;
     }
+
+
 
     /**
      * Gets the desired message from the lang file and formats it (tag replacement & colorization)

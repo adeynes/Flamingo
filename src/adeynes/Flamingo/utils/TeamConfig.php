@@ -19,6 +19,8 @@ class TeamConfig
      */
     private $numTeamsWithNumericalSup;
 
+
+
     public function __construct(int $teamSize, int $numTeams, int $numTeamsWithNumericalSup)
     {
         $this->teamSize = $teamSize;
@@ -37,6 +39,8 @@ class TeamConfig
     {
         return new TeamConfig($size, intdiv($numPlayers, $size), $numPlayers % $size);
     }
+
+
 
     /**
      * @return int

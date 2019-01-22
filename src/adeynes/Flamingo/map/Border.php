@@ -27,6 +27,7 @@ interface Border extends Tickable, Listener
      */
     public function isMoving(): bool;
 
+
     /**
      * Listens to PlayerMoveEvent for border collision/penetration
      *

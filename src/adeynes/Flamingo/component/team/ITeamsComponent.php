@@ -5,9 +5,6 @@ namespace adeynes\Flamingo\component\team;
 
 use adeynes\Flamingo\component\Component;
 use adeynes\Flamingo\event\GamePreStartEvent;
-use adeynes\Flamingo\event\GameStartEvent;
-use adeynes\Flamingo\Game;
-use adeynes\Flamingo\utils\TeamConfig;
 use pocketmine\event\Listener;
 
 interface ITeamsComponent extends Component, Listener

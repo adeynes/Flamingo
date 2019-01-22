@@ -5,25 +5,22 @@ namespace adeynes\Flamingo\component\team;
 
 use adeynes\Flamingo\map\Teleportable;
 use adeynes\Flamingo\Player;
-use pocketmine\entity\Effect;
-use pocketmine\entity\EffectInstance;
 use pocketmine\level\Position;
-use pocketmine\math\Vector3;
 
 class Team implements Teleportable
 {
 
-    protected const SIZE_OVERFLOW = 'Passed too many players Team::addPlayers(), team is full';
+    /** @var string */
+    protected const ERROR_SIZE_OVERFLOW = 'Team is full';
 
     /**
-     * How far away from the given vector players will spawn
+     * How far away from the given position players will spawn
      *
      * @var int
      *
      * @see Team::teleport()
      */
     protected const PLAYER_SPAWN_RADIUS = 15;
-
 
 
     /** @var string */
@@ -86,22 +83,20 @@ class Team implements Teleportable
     }
 
     /**
-     * @param Player ...$players
+     * @param Player $player
      */
-    public function addPlayers(Player ...$players): void
+    public function addPlayer(Player $player): void
     {
-        if ($this->getMaxSize() > 0 && count($this->getPlayers()) + count($players) > $this->getMaxSize()) {
+        if ($this->getMaxSize() > 0 && count($this->getPlayers()) >= $this->getMaxSize()) {
             throw new \InvalidArgumentCountException(
-                self::SIZE_OVERFLOW . PHP_EOL .
-                'cur. size: ' . count($this->getPlayers()) . PHP_EOL .
+                self::ERROR_SIZE_OVERFLOW . PHP_EOL .
+                'team name: ' . $this->getName() . PHP_EOL .
                 'max size: ' . $this->getMaxSize() . PHP_EOL .
-                'players passed: ' . var_export($players)
+                'player passed: ' . $player->getName()
             );
         }
 
-        foreach ($players as $player) {
-            $this->players[$player->getName()] = $player;
-        }
+        $this->players[$player->getName()] = $player;
     }
 
     /**

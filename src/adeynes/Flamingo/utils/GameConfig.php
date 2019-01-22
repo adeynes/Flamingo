@@ -14,12 +14,12 @@ final class GameConfig
     /** @var bool */
     private $hasTeams = false;
 
+
+
     public function __construct()
     {
 
     }
-
-
 
     /**
      * @return null|Level

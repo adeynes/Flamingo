@@ -3,11 +3,9 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo;
 
-use adeynes\Flamingo\component\team\Team;
 use adeynes\Flamingo\event\PlayerEliminationEvent;
 use adeynes\Flamingo\map\Teleportable;
 use pocketmine\level\Position;
-use pocketmine\math\Vector3;
 use pocketmine\Player as PMPlayer;
 
 class Player implements Teleportable
@@ -21,6 +19,8 @@ class Player implements Teleportable
 
     /** @var Game The Game to which the Player belongs */
     private $game;
+
+
 
     /**
      * @param PMPlayer $pmPlayer
@@ -61,6 +61,8 @@ class Player implements Teleportable
     {
         return $this->getGame()->getPlayer($this->getName()) === $this;
     }
+
+    
 
     /**
      * Eliminates the player (switched to spec)

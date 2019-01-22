@@ -7,11 +7,8 @@ use adeynes\Flamingo\utils\ConfigKeys;
 use adeynes\Flamingo\utils\GameConfig;
 use adeynes\Flamingo\utils\LangKeys;
 use adeynes\Flamingo\utils\Utils;
-use pocketmine\level\Level;
 use pocketmine\plugin\PluginBase;
 use pocketmine\utils\Config;
-use poggit\libasynql\DataConnector;
-use poggit\libasynql\libasynql;
 
 final class Flamingo extends PluginBase
 {
@@ -33,7 +30,6 @@ final class Flamingo extends PluginBase
 
     /** @var string */
     private const LANG_FILE = 'lang.yml';
-
 
 
     /** @var Flamingo */

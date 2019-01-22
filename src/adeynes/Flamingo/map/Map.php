@@ -6,15 +6,8 @@ namespace adeynes\Flamingo\map;
 use adeynes\Flamingo\event\PlayerAdditionEvent;
 use adeynes\Flamingo\Game;
 use adeynes\Flamingo\utils\Tickable;
-use adeynes\Flamingo\utils\Utils;
-use pocketmine\block\Block;
 use pocketmine\event\Listener;
-use pocketmine\level\ChunkLoader;
-use pocketmine\level\format\Chunk;
 use pocketmine\level\Level;
-use pocketmine\level\Position;
-use pocketmine\math\Vector2;
-use pocketmine\math\Vector3;
 
 final class Map implements Tickable, Listener
 {
@@ -66,6 +59,7 @@ final class Map implements Tickable, Listener
     {
         return new SpawnGeneratorImpl($this);
     }
+
 
 
     /**

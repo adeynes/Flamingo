@@ -8,25 +8,21 @@ use adeynes\Flamingo\component\team\ITeamsComponent;
 use adeynes\Flamingo\component\team\MultiTeamsComponent;
 use adeynes\Flamingo\component\team\SoloTeamsComponent;
 use adeynes\Flamingo\component\team\Team;
-use adeynes\Flamingo\component\team\TeamsComponent;
 use adeynes\Flamingo\component\TickableComponent;
 use adeynes\Flamingo\event\BorderStartReductionEvent;
 use adeynes\Flamingo\event\GamePreStartEvent;
 use adeynes\Flamingo\event\GameStartEvent;
 use adeynes\Flamingo\event\GameWinEvent;
 use adeynes\Flamingo\event\PlayerAdditionEvent;
-use adeynes\Flamingo\event\PlayerEliminationEvent;
 use adeynes\Flamingo\map\Map;
 use adeynes\Flamingo\utils\GameConfig;
 use adeynes\Flamingo\utils\LangKeys;
 use adeynes\Flamingo\utils\Utils;
-use pocketmine\event\entity\EntityDamageByEntityEvent;
 use pocketmine\event\entity\EntityLevelChangeEvent;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerDeathEvent;
 use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\event\player\PlayerQuitEvent;
-use pocketmine\level\Level;
 use pocketmine\Player as PMPlayer;
 use pocketmine\scheduler\ClosureTask;
 
@@ -47,7 +43,6 @@ final class Game implements Listener
 
     /** @var string */
     public const ERROR_ELIMINATE_NON_PLAYING_PLAYER = 'Attempted to eliminate a non-playing player';
-
 
 
     /** @var Flamingo */
@@ -140,6 +135,7 @@ final class Game implements Listener
         return $this->curTick;
     }
 
+
     /**
      * @return Player[]
      */
@@ -202,6 +198,7 @@ final class Game implements Listener
         $player->getPmPlayer()->setGamemode(PMPlayer::SPECTATOR);
     }
 
+
     /**
      * @return Map
      */
@@ -209,6 +206,7 @@ final class Game implements Listener
     {
         return $this->map;
     }
+
 
     public function getTeamsComponent(): ITeamsComponent
     {
@@ -222,6 +220,7 @@ final class Game implements Listener
     {
         $this->teamsComponent = $teamsComponent;
     }
+
 
     /**
      * @param Component $component
@@ -303,6 +302,9 @@ final class Game implements Listener
 
 
 
+
+
+
     /**
      * Called when a team has won the game
      *
@@ -346,6 +348,8 @@ final class Game implements Listener
         }
     }
 
+
+
     /**
      * @param PlayerQuitEvent $event
      *
@@ -386,6 +390,7 @@ final class Game implements Listener
             $player->eliminate();
         }
     }
+
 
     public function onLevelChange(EntityLevelChangeEvent $event): void
     {

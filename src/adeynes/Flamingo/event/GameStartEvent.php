@@ -12,6 +12,8 @@ class GameStartEvent extends Event
     /** @var Game */
     private $game;
 
+
+
     /**
      * @param Game $game
      */

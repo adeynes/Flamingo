@@ -20,7 +20,7 @@ map:
     radius: 900
 
     reduction:
-      # How many blocks will be substracted from the radius every game tick (1 game tick = 1 second) starting at the given minute
+      # How many blocks will be subtracted from the radius every game tick (1 game tick = 1 second) starting at the given minute
       speeds:
         # Starting at minute 100 (start of border reduction), the border will radius will reduce by 0.25/s
         # After 20 minutes, the radius will be at 600

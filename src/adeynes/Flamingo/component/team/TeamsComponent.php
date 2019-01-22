@@ -3,9 +3,7 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo\component\team;
 
-use adeynes\Flamingo\event\PlayerEliminationEvent;
 use adeynes\Flamingo\Game;
-use adeynes\Flamingo\utils\TeamConfig;
 
 abstract class TeamsComponent implements ITeamsComponent
 {
@@ -54,6 +52,7 @@ abstract class TeamsComponent implements ITeamsComponent
     {
         return $this->playingTeams;
     }
+
 
 
     /**

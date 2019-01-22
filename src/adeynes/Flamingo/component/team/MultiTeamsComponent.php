@@ -3,21 +3,14 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo\component\team;
 
-use adeynes\Flamingo\component\Component;
 use adeynes\Flamingo\event\GamePreStartEvent;
-use adeynes\Flamingo\event\GameStartEvent;
 use adeynes\Flamingo\event\PlayerEliminationEvent;
 use adeynes\Flamingo\Game;
 use adeynes\Flamingo\Player;
 use adeynes\Flamingo\utils\ConfigKeys;
 use adeynes\Flamingo\utils\TeamConfig;
 use adeynes\Flamingo\utils\Utils;
-use pocketmine\entity\Effect;
-use pocketmine\entity\EffectInstance;
-use pocketmine\event\Listener;
-use pocketmine\level\Level;
 use pocketmine\level\Position;
-use pocketmine\math\Vector2;
 
 final class MultiTeamsComponent extends TeamsComponent
 {
@@ -35,8 +28,10 @@ final class MultiTeamsComponent extends TeamsComponent
     /** @var int */
     private const DEFAULT_MINIMUM_SPAWN_DISTANCE = 250;
 
+
     /** @var TeamConfig|null */
     private $teamConfig;
+
 
 
     /**
@@ -86,7 +81,7 @@ final class MultiTeamsComponent extends TeamsComponent
         $receivingTeams = Utils::getRandomElems($this->getTeams(), count($remainingPlayers));
         array_walk($receivingTeams, function (Team $team, int $i) use ($remainingPlayers) {
             /** @var Team $team */
-            $team->addPlayers($remainingPlayers[$i]);
+            $team->addPlayer($remainingPlayers[$i]);
         });
 
         $this->playingTeams = $this->teams;
@@ -195,6 +190,8 @@ final class MultiTeamsComponent extends TeamsComponent
             }
         );
     }
+
+
 
     /**
      * @param PlayerEliminationEvent $event
