@@ -309,10 +309,7 @@ final class Game implements Listener
     public function onDeath(PlayerDeathEvent $event): void
     {
         $dead = $this->getPlayer($event->getPlayer()->getName());
-        var_dump($event->getPlayer()->getName());
-        var_dump($this->getPlayers());
         if ($dead instanceof Player) {
-            var_dump($dead->getName());
             $dead->eliminate();
         }
     }

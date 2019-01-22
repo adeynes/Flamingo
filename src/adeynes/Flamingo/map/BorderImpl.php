@@ -230,9 +230,7 @@ class BorderImpl implements Border
 
         $knockBackMotion = (new Vector3($x*$f*$base, $y, $z*$f*$base))
                            ->multiply(self::KNOCKBACK_FACTOR);
-        var_dump($knockBackMotion);
         $pmPlayer->setMotion($pmPlayer->getMotion()->divide(3)->add($knockBackMotion));
-        var_dump($pmPlayer->getMotion());
 
 
         if ($damage = $this->getCurDamage()) {
