@@ -215,7 +215,7 @@ final class Utils
      */
     public static function getInvincibilityResistance($duration = 30*20): EffectInstance
     {
-        return new EffectInstance(Effect::getEffect(Effect::RESISTANCE), 30*20, 4);
+        return new EffectInstance(Effect::getEffect(Effect::RESISTANCE), $duration, 4);
     }
 
 

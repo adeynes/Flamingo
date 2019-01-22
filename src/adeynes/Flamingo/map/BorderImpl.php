@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace adeynes\Flamingo\map;
 
+use adeynes\Flamingo\event\BorderStartReductionEvent;
 use adeynes\Flamingo\event\GameStartEvent;
 use adeynes\Flamingo\Game;
 use adeynes\Flamingo\Player;
@@ -44,7 +45,11 @@ class BorderImpl implements Border
      */
     private $radius;
 
+    /** @var bool */
     private $isBorderEnforced = false;
+
+    /** @var bool Whether the border is moving. This can be true with a reduction speed of 0 */
+    private $isMoving = false;
 
     /** @var float */
     private $curReductionSpeed = 0;
@@ -83,6 +88,14 @@ class BorderImpl implements Border
     }
 
     /**
+     * @return bool
+     */
+    public function isMoving(): bool
+    {
+        return $this->isMoving;
+    }
+
+    /**
      * @return float
      */
     public function getCurReductionSpeed(): float
@@ -97,6 +110,16 @@ class BorderImpl implements Border
     {
         return $this->curDamage;
     }
+
+    /**
+     * @return bool
+     */
+    private function hasReductionStopped(): bool
+    {
+        return $this->getRadius() <= $this->game->getPlugin()->getConfig()->getNested(ConfigKeys::REDUCTION_STOP_RADIUS);
+    }
+
+
 
     /**
      * Ticks the border (applies reduction, etc)
@@ -116,12 +139,13 @@ class BorderImpl implements Border
             if ($this->hasReductionStopped()) { // we've gone past the radius, set it back to the stop value
                 $this->radius = $this->game->getPlugin()->getConfig()->getNested(ConfigKeys::REDUCTION_STOP_RADIUS);
                 $this->curReductionSpeed = 0;
+                $this->isMoving = false;
             }
         }
     }
 
     /**
-     * Check if anything (ex. reduction speed) should change starting at this minute
+     * Check if anything (ex. reduction speed) should change starting this minute
      *
      * @param int $curMinute
      */
@@ -134,6 +158,9 @@ class BorderImpl implements Border
             krsort($speeds);
             foreach ($speeds as $minute => $speed) {
                 if ($curMinute >= $minute) {
+                    if (!$this->isMoving()) {
+                        (new BorderStartReductionEvent($this->game))->call();
+                    }
                     $this->curReductionSpeed = $speed;
                     break;
                 }
@@ -144,14 +171,6 @@ class BorderImpl implements Border
         if ($damageStart !== false && $curMinute >= $damageStart) {
             $this->curDamage = $config->getNested(ConfigKeys::BORDER_VIOLATION_DAMAGE_VALUE);
         }
-    }
-
-    /**
-     * @return bool
-     */
-    private function hasReductionStopped(): bool
-    {
-        return $this->getRadius() <= $this->game->getPlugin()->getConfig()->getNested(ConfigKeys::REDUCTION_STOP_RADIUS);
     }
 
 

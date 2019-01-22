@@ -85,10 +85,7 @@ final class SoloTeamsComponent extends TeamsComponent
     {
         unset($this->playingTeams[$event->getPlayer()->getName()]);
 
-        $winner = $this->checkWinCondition();
-        if ($winner instanceof Team) {
-            $this->game->onWin($winner);
-        }
+        $this->checkWinCondition();
     }
 
 }

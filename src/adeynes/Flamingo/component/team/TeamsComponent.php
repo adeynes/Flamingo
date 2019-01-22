@@ -56,10 +56,22 @@ abstract class TeamsComponent implements ITeamsComponent
     }
 
 
-
+    /**
+     * Checks if a team has won. If so, execute the necessary code (ie. trigger Game::onWin()
+     *
+     * @return Team|null
+     */
     public function checkWinCondition(): ?Team
     {
-        return count($this->getPlayingTeams()) === 1 ? array_values($this->getPlayingTeams())[0] : null;
+        if (count($this->getPlayingTeams()) !== 1) {
+            return null;
+        }
+
+        /** @var Team $winnerTeam */
+        $winnerTeam = array_values($this->getPlayingTeams())[0];
+        $this->game->onWin($winnerTeam);
+
+        return $winnerTeam;
     }
 
 }

@@ -10,8 +10,10 @@ use adeynes\Flamingo\component\team\SoloTeamsComponent;
 use adeynes\Flamingo\component\team\Team;
 use adeynes\Flamingo\component\team\TeamsComponent;
 use adeynes\Flamingo\component\TickableComponent;
+use adeynes\Flamingo\event\BorderStartReductionEvent;
 use adeynes\Flamingo\event\GamePreStartEvent;
 use adeynes\Flamingo\event\GameStartEvent;
+use adeynes\Flamingo\event\GameWinEvent;
 use adeynes\Flamingo\event\PlayerAdditionEvent;
 use adeynes\Flamingo\event\PlayerEliminationEvent;
 use adeynes\Flamingo\map\Map;
@@ -19,8 +21,11 @@ use adeynes\Flamingo\utils\GameConfig;
 use adeynes\Flamingo\utils\LangKeys;
 use adeynes\Flamingo\utils\Utils;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
+use pocketmine\event\entity\EntityLevelChangeEvent;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerDeathEvent;
+use pocketmine\event\player\PlayerJoinEvent;
+use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\level\Level;
 use pocketmine\Player as PMPlayer;
 use pocketmine\scheduler\ClosureTask;
@@ -35,7 +40,10 @@ final class Game implements Listener
     public const NOTICE_GAME_START_CANCELLED = 'Game starting has been cancelled';
 
     /** @var string */
-    public const ERROR_ADD_NONEXISTENT_PLAYER = 'Attempted to add a nonexistent player';
+    public const ERROR_ADD_PLAYER_TO_WRONG_GAME = 'Attempted to add a player to the wrong game ($game property does not match)';
+
+    /** @var string */
+    public const ERROR_REMOVE_NONEXISTENT_PLAYER = 'Attempted to remove a player from a game in which they are not';
 
     /** @var string */
     public const ERROR_ELIMINATE_NON_PLAYING_PLAYER = 'Attempted to eliminate a non-playing player';
@@ -61,6 +69,9 @@ final class Game implements Listener
     /** @var Player[] */
     private $players = [];
 
+    /** @var Player[] Players that have gone offline */
+    private $offlinePlayers = [];
+
     /** @var Player[] */
     private $spectators = [];
 
@@ -75,6 +86,7 @@ final class Game implements Listener
 
     /** @var TickableComponent[] */
     private $tickableComponents = [];
+
 
 
     /**
@@ -146,24 +158,35 @@ final class Game implements Listener
     }
 
     /**
-     * @param string $name
+     * @param Player $player
      * @return Player
      */
-    public function addPlayer(string $name): Player
+    public function addPlayer(Player $player): Player
     {
-        $pmPlayer = $this->getPlugin()->getServer()->getPlayer($name);
-        if (!$pmPlayer instanceof PMPlayer || !$pmPlayer->isOnline()) {
-            throw new \InvalidArgumentException(self::ERROR_ADD_NONEXISTENT_PLAYER);
+        if ($player->getGame() !== $this) {
+            throw new \InvalidArgumentException(self::ERROR_ADD_PLAYER_TO_WRONG_GAME);
         }
 
-        $player = new Player($pmPlayer, $this);
         $event = new PlayerAdditionEvent($player, $this);
         $event->call();
         if (!$event->isCancelled()) {
             $this->players[$player->getName()] = $player;
         }
 
+        if (!$player->getPmPlayer()->isOnline()) {
+            $this->offlinePlayers[$player->getName()] = $player;
+        }
+
         return $player;
+    }
+
+    public function removePlayer(Player $player): void
+    {
+        if (!$this->getPlayer($player->getName()) instanceof Player) {
+            throw new \InvalidArgumentException(self::ERROR_REMOVE_NONEXISTENT_PLAYER);
+        }
+
+        unset($this->players[$player->getName()]);
     }
 
     /**
@@ -171,11 +194,12 @@ final class Game implements Listener
      */
     public function addSpectator(Player $player): void
     {
-        $name = $player->getName();
         if ($player->isPlaying()) {
-            unset($this->players[$name]);
+            $this->removePlayer($player);
         }
-        $this->spectators[$name] = $player;
+        $this->spectators[$player->getName()] = $player;
+
+        $player->getPmPlayer()->setGamemode(PMPlayer::SPECTATOR);
     }
 
     /**
@@ -296,6 +320,14 @@ final class Game implements Listener
             )
         );
 
+        foreach ($winnerTeam->getPlayers() as $player) {
+            if ($player->isPlaying()) {
+                $this->addSpectator($player);
+            }
+        }
+
+        (new GameWinEvent($winnerTeam, $this))->call();
+
         $this->stop();
     }
 
@@ -312,6 +344,62 @@ final class Game implements Listener
         if ($dead instanceof Player) {
             $dead->eliminate();
         }
+    }
+
+    /**
+     * @param PlayerQuitEvent $event
+     *
+     * @priority MONITOR
+     */
+    public function onQuit(PlayerQuitEvent $event): void
+    {
+        $player = $this->getPlayer($event->getPlayer()->getName());
+        if (!$this->getPlayer($player->getName()) instanceof Player) {
+            return;
+        }
+
+        $this->offlinePlayers[$player->getName()] = $player;
+
+        if ($this->getMap()->getBorder()->isMoving()) {
+            $player->eliminate();
+        }
+    }
+
+    /**
+     * @param PlayerJoinEvent $event
+     *
+     * @priority MONITOR
+     */
+    public function onJoin(PlayerJoinEvent $event): void
+    {
+        $name = $event->getPlayer()->getName();
+        if (!isset($this->offlinePlayers[$name])) {
+            return;
+        }
+
+        unset($this->offlinePlayers[$name]);
+    }
+
+    public function onReductionStart(BorderStartReductionEvent $event): void
+    {
+        foreach ($this->offlinePlayers as $player) {
+            $player->eliminate();
+        }
+    }
+
+    public function onLevelChange(EntityLevelChangeEvent $event): void
+    {
+        $entity = $event->getEntity();
+        if (!$entity instanceof PMPlayer) {
+            return;
+        }
+
+        $player = $this->getPlayer($entity->getName());
+        if (!$player instanceof Player) {
+            return;
+        }
+
+        $this->removePlayer($player);
     }
 
 

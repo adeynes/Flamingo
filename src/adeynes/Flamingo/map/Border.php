@@ -23,6 +23,11 @@ interface Border extends Tickable, Listener
     public function isWithinLimits(Vector2 $vector): bool;
 
     /**
+     * @return bool
+     */
+    public function isMoving(): bool;
+
+    /**
      * Listens to PlayerMoveEvent for border collision/penetration
      *
      * @param PlayerMoveEvent $event

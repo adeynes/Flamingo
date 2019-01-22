@@ -217,10 +217,7 @@ final class MultiTeamsComponent extends TeamsComponent
             }
         }
 
-        $winner = $this->checkWinCondition();
-        if ($winner instanceof Team) {
-            $this->game->onWin($winner);
-        }
+        $this->checkWinCondition();
     }
 
 }

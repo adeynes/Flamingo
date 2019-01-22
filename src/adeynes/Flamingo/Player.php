@@ -49,12 +49,17 @@ class Player implements Teleportable
         return $this->pmPlayer;
     }
 
+    public function getGame(): Game
+    {
+        return $this->game;
+    }
+
     /**
      * @return bool
      */
     public function isPlaying(): bool
     {
-        return $this->game->getPlayer($this->getName()) === $this;
+        return $this->getGame()->getPlayer($this->getName()) === $this;
     }
 
     /**
@@ -62,10 +67,9 @@ class Player implements Teleportable
      */
     public function eliminate(): void
     {
-        $this->game->addSpectator($this);
-        $this->getPmPlayer()->setGamemode(PMPlayer::SPECTATOR);
+        $this->getGame()->addSpectator($this);
 
-        (new PlayerEliminationEvent($this, $this->game))->call();
+        (new PlayerEliminationEvent($this, $this->getGame()))->call();
     }
 
 
